@@ -1,0 +1,17 @@
+{
+  "name": "@hancao/wealth-ai",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "serve": "http-server ./src/views -p 5173 -c-1 -o",
+    "fetch": "node ./src/tools/gurufocus-crawler.js",
+    "today": "fetch && serve"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "axios": "^1.12.0"
+  }
+}
