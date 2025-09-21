@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "serve": "http-server ./src/views -p 5173 -c-1 -o",
-    "fetch": "node ./src/tools/gurufocus-crawler.js",
-    "today": "fetch && serve"
+    "fetch": "node ./src/scripts/gurufocus-crawler.js",
+    "serve:today": "node ./src/scripts/gurufocus-crawler.js && http-server ./src/views -p 5173 -c-1 -o"
   },
   "author": "",
   "license": "ISC",

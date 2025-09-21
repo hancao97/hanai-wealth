@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Permissions-Policy" content="unload=()">
   <title>HANAI · WEALTH - 智能投资决策平台</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <style>
@@ -23,10 +24,10 @@
     
      html, body { 
        height: 100%; 
-       margin: 0;
+      margin: 0;
        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
        background: linear-gradient(88deg, #dbeafe 0%, #e0e7ff 50%, var(--bg) 100%);
-       color: var(--text);
+      color: var(--text);
      }
     
     .container {
@@ -164,7 +165,7 @@
      .filters {
        background: white;
        border: 1px solid var(--border);
-       border-radius: 16px;
+      border-radius: 16px;
        padding: 24px;
        margin-bottom: 24px;
        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
@@ -251,13 +252,16 @@
       white-space: nowrap;
     }
     
-    .table th:nth-child(1), .table td:nth-child(1) { width: 120px; } /* 公司名称 */
-    .table th:nth-child(2), .table td:nth-child(2) { width: 80px; }  /* 股票代码 */
-    .table th:nth-child(3), .table td:nth-child(3) { width: 80px; }  /* 价格 */
-    .table th:nth-child(4), .table td:nth-child(4) { width: 80px; }  /* 涨跌幅 */
-    .table th:nth-child(5), .table td:nth-child(5) { width: 60px; }  /* GF估值 */
-    .table th:nth-child(6), .table td:nth-child(6) { width: 120px; } /* 估值说明 */
-    .table th:nth-child(7), .table td:nth-child(7) { width: 100px; } /* 市值 */
+      .table th:nth-child(1), .table td:nth-child(1) { width: 120px; } /* 公司名称 */
+      .table th:nth-child(2), .table td:nth-child(2) { width: 80px; }  /* 股票代码 */
+      .table th:nth-child(3), .table td:nth-child(3) { width: 100px; } /* 行业 */
+      .table th:nth-child(4), .table td:nth-child(4) { width: 70px; }  /* 板块 */
+      .table th:nth-child(5), .table td:nth-child(5) { width: 80px; }  /* 价格 */
+      .table th:nth-child(6), .table td:nth-child(6) { width: 80px; }  /* 涨跌幅 */
+      .table th:nth-child(7), .table td:nth-child(7) { width: 70px; }  /* 市盈率 */
+      .table th:nth-child(8), .table td:nth-child(8) { width: 80px; }  /* GF评分 */
+      .table th:nth-child(9), .table td:nth-child(9) { width: 100px; } /* 估值说明 */
+      .table th:nth-child(10), .table td:nth-child(10) { width: 100px; } /* 市值 */
     
      .table th {
        background: #f8fafc;
@@ -274,6 +278,17 @@
     
      .table tbody tr:hover {
        background: #f8fafc;
+     }
+     
+     .table tbody tr.clickable {
+      cursor: pointer;
+       transition: all 0.2s ease;
+     }
+     
+     .table tbody tr.clickable:hover {
+       background: #e2e8f0;
+       transform: translateY(-1px);
+       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
      }
     
     .gf-valuation {
@@ -302,6 +317,19 @@
       color: #94a3b8;
       font-size: 12px;
     }
+    
+    .board-tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+      font-size: 12px;
+    }
+    
+    .board-main { background: #3b82f6; color: white; } /* 主板 - 蓝色 */
+    .board-growth { background: #10b981; color: white; } /* 创业板 - 绿色 */
+    .board-star { background: #f59e0b; color: white; } /* 科创板 - 橙色 */
+    .board-north { background: #8b5cf6; color: white; } /* 北证 - 紫色 */
     
      .no-results {
        text-align: center;
@@ -459,6 +487,10 @@
      .stat-no-data { border-color: #6b7280; background: #f9fafb; }
      .stat-rising { border-color: #dc2626; background: #fee2e2; }
      .stat-falling { border-color: #10b981; background: #ecfdf5; }
+     .stat-board-main { border-color: #3b82f6; background: #dbeafe; }
+     .stat-board-growth { border-color: #10b981; background: #ecfdf5; }
+     .stat-board-star { border-color: #f59e0b; background: #fef3c7; }
+     .stat-board-north { border-color: #8b5cf6; background: #f3e8ff; }
     
      .stat-item:hover {
        transform: translateY(-2px);
@@ -483,6 +515,10 @@
      .stat-no-data .stat-value { color: #6b7280; }
      .stat-rising .stat-value { color: #dc2626; }
      .stat-falling .stat-value { color: #10b981; }
+     .stat-board-main .stat-value { color: #3b82f6; }
+     .stat-board-growth .stat-value { color: #10b981; }
+     .stat-board-star .stat-value { color: #f59e0b; }
+     .stat-board-north .stat-value { color: #8b5cf6; }
     
      .stat-label {
        font-size: 14px;
@@ -624,14 +660,14 @@
           <div class="chart-container">
             <div id="valuationChart" style="width: 100%; height: 300px;"></div>
           </div>
-        </div>
-        
+    </div>
+
         <!-- 涨跌幅分布 -->
         <div class="dashboard-card">
           <h3>涨跌幅分布</h3>
           <div class="chart-container">
             <div id="changeChart" style="width: 100%; height: 300px;"></div>
-          </div>
+    </div>
         </div>
       </div>
       
@@ -686,6 +722,29 @@
             </div>
           </div>
         </div>
+        
+        <!-- 板块分布统计 -->
+        <div class="stats-section">
+          <h3 class="stats-section-title">板块分布统计</h3>
+          <div class="stats-grid" id="boardStatsGrid">
+            <div class="stat-item stat-board-main clickable" data-board="主板" onclick="stockFilter.filterByBoard('主板')">
+              <div class="stat-value" id="mainBoardCount">0</div>
+              <div class="stat-label">主板</div>
+            </div>
+            <div class="stat-item stat-board-growth clickable" data-board="创业板" onclick="stockFilter.filterByBoard('创业板')">
+              <div class="stat-value" id="growthBoardCount">0</div>
+              <div class="stat-label">创业板</div>
+            </div>
+            <div class="stat-item stat-board-star clickable" data-board="科创板" onclick="stockFilter.filterByBoard('科创板')">
+              <div class="stat-value" id="starBoardCount">0</div>
+              <div class="stat-label">科创板</div>
+            </div>
+            <div class="stat-item stat-board-north clickable" data-board="北证" onclick="stockFilter.filterByBoard('北证')">
+              <div class="stat-value" id="northBoardCount">0</div>
+              <div class="stat-label">北证</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -715,6 +774,24 @@
             <option value="7">严重高估</option>
           </select>
         </div>
+        
+         <div class="filter-group">
+           <label for="industryFilter">行业</label>
+           <select id="industryFilter" class="filter-input">
+             <option value="">所有行业</option>
+           </select>
+         </div>
+         
+         <div class="filter-group">
+           <label for="boardFilter">板块</label>
+           <select id="boardFilter" class="filter-input">
+             <option value="">所有板块</option>
+             <option value="主板">主板</option>
+             <option value="创业板">创业板</option>
+             <option value="科创板">科创板</option>
+             <option value="北证">北证</option>
+           </select>
+         </div>
       </div>
     </div>
     
@@ -730,13 +807,16 @@
       <table class="table">
         <thead>
           <tr>
-            <th>公司名称</th>
-            <th>股票代码</th>
-            <th>价格</th>
-            <th>涨跌幅</th>
-            <th>GF估值</th>
-            <th>估值说明</th>
-            <th>市值</th>
+             <th>公司名称</th>
+             <th>股票代码</th>
+             <th>行业</th>
+             <th>板块</th>
+             <th>价格</th>
+             <th>涨跌幅</th>
+             <th>市盈率</th>
+             <th>GF评分</th>
+             <th>估值说明</th>
+             <th>市值</th>
           </tr>
         </thead>
         <tbody id="dataTable">
@@ -770,8 +850,10 @@
       
       initializeElements() {
         this.dateSelect = document.getElementById('dateSelectTop');
-        this.companyFilter = document.getElementById('companyFilter');
-        this.valuationFilter = document.getElementById('valuationFilter');
+         this.companyFilter = document.getElementById('companyFilter');
+         this.valuationFilter = document.getElementById('valuationFilter');
+         this.industryFilter = document.getElementById('industryFilter');
+         this.boardFilter = document.getElementById('boardFilter');
         this.dataTable = document.getElementById('dataTable');
         this.resultsCount = document.getElementById('resultsCount');
         this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -786,8 +868,10 @@
       
       setupEventListeners() {
         this.dateSelect.addEventListener('change', () => this.loadDataForDate());
-        this.companyFilter.addEventListener('input', () => this.applyFilters());
-        this.valuationFilter.addEventListener('change', () => this.applyFilters());
+         this.companyFilter.addEventListener('input', () => this.applyFilters());
+         this.valuationFilter.addEventListener('change', () => this.applyFilters());
+         this.industryFilter.addEventListener('change', () => this.applyFilters());
+         this.boardFilter.addEventListener('change', () => this.applyFilters());
       }
       
       async loadDatesConfig() {
@@ -808,8 +892,21 @@
           this.populateDateSelect();
           
           if (this.availableDates.length > 0) {
-            this.currentDate = this.availableDates[0]; // 默认选择最新日期
-            this.dateSelect.value = this.currentDate;
+            // 检查URL参数中是否有指定日期
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlDate = urlParams.get('date');
+            
+            let selectedDate;
+            if (urlDate && this.availableDates.includes(urlDate)) {
+              // 使用URL参数中的日期
+              selectedDate = urlDate;
+            } else {
+              // 默认选择最新日期
+              selectedDate = this.availableDates[0];
+            }
+            
+            this.currentDate = selectedDate;
+            this.dateSelect.value = selectedDate;
             await this.loadDataForDate();
           }
         } catch (error) {
@@ -846,11 +943,11 @@
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
-          
-          this.allData = await response.json();
-          this.updateDateStatus(`${selectedDate} 数据已加载 (${this.allData.length.toLocaleString()}条)`, 'success');
-          this.updateDashboard();
-          this.applyFilters();
+            this.allData = await response.json();
+            this.updateDateStatus(`${selectedDate} 数据已加载 (${this.allData.length.toLocaleString()}条)`, 'success');
+            this.populateIndustryOptions();
+            this.updateDashboard();
+            this.applyFilters();
         } catch (error) {
           this.showError(`无法加载 ${selectedDate} 的数据: ${error.message}`);
           this.updateDateStatus(`加载失败`, 'error');
@@ -866,7 +963,55 @@
         this.dateStatus.className = `date-status ${type}`;
       }
       
+      // 根据股票代码检测板块类型
+      detectStockBoard(symbol) {
+        if (!symbol || typeof symbol !== 'string') {
+          return '主板';
+        }
+        
+        const code = symbol.trim();
+        
+        // 主板：000/001/002/003/600/601/603/605 开头
+        if (/^(000|001|002|003|600|601|603|605)/.test(code)) {
+          return '主板';
+        }
+        
+        // 创业板：300/301 开头  
+        if (/^(300|301)/.test(code)) {
+          return '创业板';
+        }
+        
+        // 科创板：688 开头
+        if (/^688/.test(code)) {
+          return '科创板';
+        }
+        
+        // 北证：43/83/87/92 开头
+        if (/^(43|83|87|92)/.test(code)) {
+          return '北证';
+        }
+        
+        // 未知情况，计入主板
+        return '主板';
+      }
+      
+      // 获取板块对应的CSS类
+      getBoardClass(board) {
+        const classMap = {
+          '主板': 'board-main',
+          '创业板': 'board-growth',
+          '科创板': 'board-star',
+          '北证': 'board-north'
+        };
+        return classMap[board] || 'board-main';
+      }
+      
       applyFilters() {
+        // 如果关键筛选器元素还没有初始化，跳过筛选
+        if (!this.companyFilter || !this.valuationFilter) {
+          return;
+        }
+        
         let filtered = [...this.allData];
         
         // 公司名称筛选
@@ -886,6 +1031,27 @@
             return valuation === targetValuation;
           });
         }
+        
+         // 行业筛选
+         if (this.industryFilter) {
+           const industryValue = this.industryFilter.value;
+           if (industryValue) {
+             filtered = filtered.filter(item => {
+               return item.industry === industryValue;
+             });
+           }
+         }
+         
+         // 板块筛选
+         if (this.boardFilter) {
+           const boardValue = this.boardFilter.value;
+           if (boardValue) {
+             filtered = filtered.filter(item => {
+               const board = item.board || this.detectStockBoard(item.symbol);
+               return board === boardValue;
+             });
+           }
+         }
         
          this.filteredData = filtered;
          this.currentPage = 1; // 重置到第一页
@@ -912,25 +1078,35 @@
          const endIndex = startIndex + this.pageSize;
          const currentPageData = this.filteredData.slice(startIndex, endIndex);
          
-         this.dataTable.innerHTML = currentPageData.map(item => `
-          <tr>
-            <td title="${this.escapeHtml(item.company || 'N/A')}">${this.escapeHtml(item.company || 'N/A')}</td>
-            <td><span class="symbol">${this.escapeHtml(item.symbol || 'N/A')}</span></td>
-            <td class="price">${this.escapeHtml(item.price || 'N/A')}</td>
-            <td style="color: ${item.p_pct_change >= 0 ? '#ef4444' : '#10b981'}; font-weight: 600;">
-              ${item.p_pct_change !== undefined ? item.p_pct_change.toFixed(2) + '%' : 'N/A'}
-            </td>
-            <td>
-              <span class="gf-valuation gf-${item.gf_valuation || 0}">
-                ${item.gf_valuation || 'N/A'}
-              </span>
-            </td>
-            <td style="font-weight: 700; font-size: 13px; color: ${this.getValuationColor(item.gf_valuation)};">
-              ${this.getValuationDescription(item.gf_valuation)}
-            </td>
-            <td>${this.formatMarketCap(item.mktcap_norm_currency)}</td>
-          </tr>
-        `).join('');
+          this.dataTable.innerHTML = currentPageData.map(item => {
+            const board = item.board || this.detectStockBoard(item.symbol);
+            return `
+           <tr class="table-row clickable" data-stockid="${item.stockid}" onclick="stockFilter.viewStockDetail(this)">
+             <td title="${this.escapeHtml(item.company || 'N/A')}">${this.escapeHtml(item.company || 'N/A')}</td>
+             <td><span class="symbol">${this.escapeHtml(item.symbol || 'N/A')}</span></td>
+             <td title="${this.escapeHtml(item.industry || 'N/A')}">${this.escapeHtml(this.truncateText(item.industry || 'N/A', 8))}</td>
+             <td>
+               <span class="board-tag ${this.getBoardClass(board)}">
+                 ${board}
+               </span>
+             </td>
+             <td class="price">${this.formatPrice(item.price)}</td>
+             <td style="color: ${item.p_pct_change >= 0 ? '#ef4444' : '#10b981'}; font-weight: 600;">
+               ${this.formatPercentage(item.p_pct_change)}
+             </td>
+             <td class="pe-ratio">${this.formatPE(item.pettm)}</td>
+             <td>
+               <span class="gf-score" style="font-weight: 600; color: ${this.getScoreColor(item.gf_score)};">
+                 ${item.gf_score || 'N/A'}
+               </span>
+             </td>
+             <td style="font-weight: 700; font-size: 13px; color: ${this.getValuationColor(item.gf_valuation)};">
+               ${this.getValuationDescription(item.gf_valuation)}
+             </td>
+             <td>${this.formatMarketCap(item.mktcap_norm_currency)}</td>
+           </tr>
+         `;
+          }).join('');
       }
       
       getValuationDescription(valuation) {
@@ -1029,8 +1205,20 @@
           }]
         };
         
-        chart.setOption(option);
-        window.addEventListener('resize', () => chart.resize());
+         chart.setOption(option);
+        
+        // 使用更安全的resize监听方式
+        let valuationResizeTimer;
+        const handleValuationResize = () => {
+          clearTimeout(valuationResizeTimer);
+          valuationResizeTimer = setTimeout(() => {
+            if (chart && !chart.isDisposed()) {
+              chart.resize();
+            }
+          }, 100);
+        };
+        
+        window.addEventListener('resize', handleValuationResize, { passive: true });
       }
       
       updateChangeChart() {
@@ -1091,8 +1279,20 @@
           }]
         };
         
-        chart.setOption(option);
-        window.addEventListener('resize', () => chart.resize());
+         chart.setOption(option);
+        
+        // 使用更安全的resize监听方式
+        let changeResizeTimer;
+        const handleChangeResize = () => {
+          clearTimeout(changeResizeTimer);
+          changeResizeTimer = setTimeout(() => {
+            if (chart && !chart.isDisposed()) {
+              chart.resize();
+            }
+          }, 100);
+        };
+        
+        window.addEventListener('resize', handleChangeResize, { passive: true });
       }
       
       getValuationCounts() {
@@ -1195,6 +1395,25 @@
         const noData = this.allData.filter(item => item.gf_valuation === 0).length;
         const rising = this.allData.filter(item => item.p_pct_change > 0).length;
         const falling = this.allData.filter(item => item.p_pct_change < 0).length;
+        
+        // 板块统计
+        const mainBoard = this.allData.filter(item => {
+          const board = item.board || this.detectStockBoard(item.symbol);
+          return board === '主板';
+        }).length;
+        const growthBoard = this.allData.filter(item => {
+          const board = item.board || this.detectStockBoard(item.symbol);
+          return board === '创业板';
+        }).length;
+        const starBoard = this.allData.filter(item => {
+          const board = item.board || this.detectStockBoard(item.symbol);
+          return board === '科创板';
+        }).length;
+        const northBoard = this.allData.filter(item => {
+          const board = item.board || this.detectStockBoard(item.symbol);
+          return board === '北证';
+        }).length;
+        
         document.getElementById('severeUndervaluedCount').textContent = severeUndervalued.toLocaleString();
         document.getElementById('undervaluedCount').textContent = undervalued.toLocaleString();
         document.getElementById('fairCount').textContent = fair.toLocaleString();
@@ -1204,6 +1423,10 @@
         document.getElementById('noDataCount').textContent = noData.toLocaleString();
         document.getElementById('risingCount').textContent = rising.toLocaleString();
         document.getElementById('fallingCount').textContent = falling.toLocaleString();
+        document.getElementById('mainBoardCount').textContent = mainBoard.toLocaleString();
+        document.getElementById('growthBoardCount').textContent = growthBoard.toLocaleString();
+        document.getElementById('starBoardCount').textContent = starBoard.toLocaleString();
+        document.getElementById('northBoardCount').textContent = northBoard.toLocaleString();
       }
       
       formatMarketCap(value) {
@@ -1217,6 +1440,79 @@
           return (value / 1e4).toFixed(2) + '万';
         }
         return value.toFixed(2);
+      }
+
+      formatPrice(price) {
+        if (!price) return 'N/A';
+        if (typeof price === 'string') {
+          // 如果价格已经包含货币符号，直接返回
+          if (price.includes('¥') || price.includes('$')) {
+            return price;
+          }
+          // 尝试解析为数字
+          const numPrice = parseFloat(price);
+          if (isNaN(numPrice)) return price; // 如果解析失败，返回原字符串
+          return `¥${numPrice.toFixed(2)}`;
+        }
+        return `¥${price.toFixed(2)}`;
+      }
+
+      formatPE(pe) {
+        if (!pe) return 'N/A';
+        
+        // 转换为数字类型
+        const numPE = typeof pe === 'string' ? parseFloat(pe) : pe;
+        
+        // 检查是否为有效数字
+        if (isNaN(numPE) || numPE <= 0) return 'N/A';
+        if (numPE > 1000) return '>1000';
+        
+        return numPE.toFixed(1);
+      }
+
+      formatPercentage(value) {
+        if (value === undefined || value === null) return 'N/A';
+        
+        // 转换为数字类型
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (isNaN(numValue)) return 'N/A';
+        
+        return numValue.toFixed(2) + '%';
+      }
+
+      getScoreColor(score) {
+        if (!score) return '#94a3b8';
+        
+        // 转换为数字类型
+        const numScore = typeof score === 'string' ? parseFloat(score) : score;
+        if (isNaN(numScore)) return '#94a3b8';
+        
+        if (numScore >= 80) return '#10b981'; // 绿色 - 优秀
+        if (numScore >= 60) return '#f59e0b'; // 橙色 - 良好
+        if (numScore >= 40) return '#ef4444'; // 红色 - 一般
+        return '#6b7280'; // 灰色 - 较差
+      }
+
+      truncateText(text, length) {
+        if (!text) return 'N/A';
+        if (text.length <= length) return text;
+        return text.substring(0, length) + '...';
+      }
+      
+      populateIndustryOptions() {
+        // 获取所有不重复的行业
+        const industries = [...new Set(this.allData.map(item => item.industry).filter(industry => industry))].sort();
+        
+        // 清空现有选项（除了默认的"所有行业"）
+        this.industryFilter.innerHTML = '<option value="">所有行业</option>';
+        
+        // 添加行业选项
+        industries.forEach(industry => {
+          const option = document.createElement('option');
+          option.value = industry;
+          option.textContent = industry;
+          this.industryFilter.appendChild(option);
+        });
       }
       
       escapeHtml(text) {
@@ -1350,6 +1646,22 @@
          this.updateStatItemActiveState();
        }
        
+       filterByBoard(board) {
+         // 更新板块下拉选择框
+         const boardFilter = document.getElementById('boardFilter');
+         
+         if (boardFilter.value !== board) {
+           boardFilter.value = board;
+           this.applyFilters();
+         } else if (boardFilter.value === board) {
+           // 如果已经选中该选项，则清空筛选
+           boardFilter.value = '';
+           this.applyFilters();
+         }
+         
+         this.updateStatItemActiveState();
+       }
+       
        updateStatItemActiveState() {
          // 清除所有激活状态
          document.querySelectorAll('.stat-item.clickable').forEach(item => {
@@ -1364,7 +1676,50 @@
              activeItem.classList.add('active');
            }
          }
+         
+         // 板块筛选激活状态
+         const currentBoard = this.boardFilter.value;
+         if (currentBoard) {
+           const activeBoardItem = document.querySelector(`[data-board="${currentBoard}"]`);
+           if (activeBoardItem) {
+             activeBoardItem.classList.add('active');
+           }
+         }
        }
+       
+        viewStockDetail(row) {
+          try {
+            // 从data-stockid属性获取股票ID
+            const stockid = row.getAttribute('data-stockid');
+            if (!stockid) {
+              console.error('未找到股票ID');
+              return;
+            }
+            
+            // 获取当前选择的日期
+            const currentDate = this.dateSelect.value;
+            if (!currentDate) {
+              console.error('未找到当前日期');
+              return;
+            }
+            
+            // 构建详情页面URL，使用stockid和date参数
+            const detailUrl = `detail.html?stockid=${encodeURIComponent(stockid)}&date=${encodeURIComponent(currentDate)}`;
+            
+            // 使用链接方式打开详情页面
+            const link = document.createElement('a');
+            link.href = detailUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+          } catch (error) {
+            console.error('打开股票详情页面失败:', error);
+            alert('无法打开股票详情页面');
+          }
+        }
       
       showLoading(show) {
         this.loadingIndicator.style.display = show ? 'block' : 'none';

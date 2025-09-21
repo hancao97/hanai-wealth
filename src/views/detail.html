@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Permissions-Policy" content="unload=()">
+  <title>股票详情 - HANAI · WEALTH</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    :root { 
+      --bg: #f8fafc; 
+      --card: #ffffff; 
+      --text: #334155; 
+      --accent: #3b82f6; 
+      --border: rgba(0,0,0,0.1);
+      --input-bg: rgba(255,255,255,0.8);
+      --shadow: rgba(0,0,0,0.1);
+      --primary: #1e40af;
+      --secondary: #7c3aed;
+      --gold: #f59e0b;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(88deg, #dbeafe 0%, #e0e7ff 50%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 40px 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+      border-radius: 20px;
+      box-shadow: 0 8px 32px var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    
+    .header h1 {
+      font-size: 36px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 30%, #7c3aed 60%, #f59e0b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+
+    .header .subtitle {
+      color: #64748b;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .back-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 12px 24px;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+    }
+
+    .back-btn:hover {
+      background: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+    }
+    
+    .stock-header {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85));
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 32px var(--shadow);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .stock-title {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .stock-title h2 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .stock-symbol {
+      background: var(--accent);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .board-tag {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .board-main { background: #3b82f6; color: white; }
+    .board-growth { background: #10b981; color: white; }
+    .board-star { background: #f59e0b; color: white; }
+    .board-north { background: #8b5cf6; color: white; }
+
+    .price-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .price-item {
+      background: rgba(255,255,255,0.6);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .price-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .price-label {
+      font-size: 14px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    .info-card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85));
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px var(--shadow);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .info-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .info-table {
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    .info-table tr {
+      border-bottom: 1px solid #e2e8f0;
+      transition: background-color 0.2s ease;
+    }
+
+    .info-table tr:hover {
+      background-color: rgba(59, 130, 246, 0.05);
+    }
+
+    .info-table td {
+      padding: 12px 0;
+      vertical-align: top;
+    }
+
+    .info-table td:first-child {
+      font-weight: 600;
+      color: #64748b;
+      width: 40%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 100px;
+      max-width: 140px;
+      position: relative;
+      cursor: help;
+    }
+
+    .info-table td:first-child[title]:hover::after {
+      content: attr(title);
+      position: absolute;
+      left: 0;
+      top: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: normal;
+      z-index: 1000;
+      min-width: 200px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      margin-top: 4px;
+    }
+
+    .info-table td:last-child {
+      font-weight: 600;
+      color: var(--text);
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .gf-valuation {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      text-align: center;
+    }
+    
+    .gf-0 { background: #94a3b8; color: white; }
+    .gf-2 { background: #dc2626; color: white; }
+    .gf-3 { background: #059669; color: white; }
+    .gf-4 { background: #0891b2; color: white; }
+    .gf-5 { background: #7c3aed; color: white; }
+    .gf-6 { background: #ea580c; color: white; }
+    .gf-7 { background: #dc2626; color: white; }
+    
+    .rank-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .rank-stars {
+      display: flex;
+      gap: 2px;
+    }
+
+    .star {
+      width: 16px;
+      height: 16px;
+      background: #e2e8f0;
+      border-radius: 2px;
+    }
+
+    .star.filled {
+      background: #f59e0b;
+    }
+
+    .business-card {
+      grid-column: 1 / -1;
+    }
+
+    .business-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .business-item {
+      background: rgba(255,255,255,0.6);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .business-item h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    
+    .business-description {
+      background: rgba(255,255,255,0.6);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      line-height: 1.8;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 50px;
+      font-size: 18px;
+      color: #64748b;
+    }
+    
+    .error {
+      text-align: center;
+      padding: 50px;
+      color: #dc2626;
+      font-size: 18px;
+    }
+    
+    @media (max-width: 768px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .price-info {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .business-info {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="#" class="back-btn" onclick="goBack()">← 返回列表</a>
+  
+  <div class="container">
+    <div class="header">
+      <h1>HANAI · WEALTH</h1>
+      <div class="subtitle">股票详细信息</div>
+    </div>
+    
+    <div id="loadingIndicator" class="loading">
+      正在加载股票详情...
+    </div>
+
+    <div id="errorMessage" class="error" style="display: none;">
+    </div>
+
+    <div id="stockDetail" style="display: none;">
+      <!-- 股票基础信息 -->
+      <div class="stock-header">
+        <div class="stock-title">
+          <h2 id="stockName">-</h2>
+          <span class="stock-symbol" id="stockSymbol">-</span>
+          <span class="board-tag" id="stockBoard">-</span>
+      </div>
+      
+        <div class="price-info">
+          <div class="price-item">
+            <div class="price-value" id="currentPrice">-</div>
+            <div class="price-label">当前价格</div>
+          </div>
+          <div class="price-item">
+            <div class="price-value" id="priceChange">-</div>
+            <div class="price-label">涨跌幅</div>
+          </div>
+          <div class="price-item">
+            <div class="price-value" id="marketCap">-</div>
+            <div class="price-label">市值</div>
+          </div>
+          <div class="price-item">
+            <div class="price-value" id="gfScore">-</div>
+            <div class="price-label">GF评分</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-grid">
+        <!-- 估值信息 -->
+        <div class="info-card">
+          <h3>📊 估值信息</h3>
+          <table class="info-table">
+            <tr>
+              <td>GF估值</td>
+              <td id="gfValuation">-</td>
+            </tr>
+            <tr>
+              <td>GF合理估值</td>
+              <td id="gfValue">-</td>
+            </tr>
+            <tr>
+              <td>市盈率(TTM)</td>
+              <td id="peTTM">-</td>
+            </tr>
+            <tr>
+              <td title="近10年最高市盈率">10年最高PE</td>
+              <td id="peHigh">-</td>
+            </tr>
+            <tr>
+              <td title="近10年最低市盈率">10年最低PE</td>
+              <td id="peLow">-</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- 财务指标 -->
+        <div class="info-card">
+          <h3>💰 财务指标</h3>
+          <table class="info-table">
+            <tr>
+              <td>股息率</td>
+              <td id="dividendYield">-</td>
+            </tr>
+            <tr>
+              <td>毛利率</td>
+              <td id="grossMargin">-</td>
+            </tr>
+            <tr>
+              <td>净利率</td>
+              <td id="netMargin">-</td>
+            </tr>
+            <tr>
+              <td>自由现金流</td>
+              <td id="freeCashFlow">-</td>
+            </tr>
+            <tr>
+              <td title="近10年净利润增长率">10年净利润增长</td>
+              <td id="incomeGrowth">-</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- 价格区间 -->
+        <div class="info-card">
+          <h3>📈 价格区间</h3>
+          <table class="info-table">
+            <tr>
+              <td title="近10年历史最高股价">10年最高价</td>
+              <td id="price10yHigh">-</td>
+            </tr>
+            <tr>
+              <td title="近10年历史最低股价">10年最低价</td>
+              <td id="price10yLow">-</td>
+            </tr>
+            <tr>
+              <td title="近10年年化投资回报率">10年年化回报</td>
+              <td id="return10y">-</td>
+            </tr>
+            <tr>
+              <td>20日均线</td>
+              <td id="sma20">-</td>
+            </tr>
+            <tr>
+              <td>50日均线</td>
+              <td id="sma50">-</td>
+            </tr>
+            <tr>
+              <td>200日均线</td>
+              <td id="sma200">-</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- 评级信息 -->
+        <div class="info-card">
+          <h3>⭐ 各项评级</h3>
+          <div class="rank-item">
+            <span>价值大师评级:</span>
+            <div class="rank-stars" id="rankGfValue"></div>
+            <span id="rankGfValueText">-</span>
+          </div>
+          <div class="rank-item">
+            <span>成长能力评级:</span>
+            <div class="rank-stars" id="rankGrowth"></div>
+            <span id="rankGrowthText">-</span>
+          </div>
+          <div class="rank-item">
+            <span>价值动量评级:</span>
+            <div class="rank-stars" id="rankMomentum"></div>
+            <span id="rankMomentumText">-</span>
+          </div>
+          <div class="rank-item">
+            <span>盈利能力评级:</span>
+            <div class="rank-stars" id="rankProfitability"></div>
+            <span id="rankProfitabilityText">-</span>
+          </div>
+          <div class="rank-item">
+            <span>财务实力评级:</span>
+            <div class="rank-stars" id="rankBalancesheet"></div>
+            <span id="rankBalancesheetText">-</span>
+          </div>
+        </div>
+        
+        <!-- 公司信息 -->
+        <div class="info-card business-card">
+          <h3>🏢 公司信息</h3>
+          <div class="business-info">
+            <div class="business-item">
+              <h4>基本信息</h4>
+              <table class="info-table">
+                <tr>
+                  <td>行业</td>
+                  <td id="industry">-</td>
+                </tr>
+                <tr>
+                  <td>板块</td>
+                  <td id="sector">-</td>
+                </tr>
+                <tr>
+                  <td>分组</td>
+                  <td id="group">-</td>
+                </tr>
+                <tr>
+                  <td>董事长</td>
+                  <td id="chairman">-</td>
+                </tr>
+                <tr>
+                  <td>总经理</td>
+                  <td id="manager">-</td>
+                </tr>
+              </table>
+            </div>
+            
+            <div class="business-item">
+              <h4>联系信息</h4>
+              <table class="info-table">
+                <tr>
+                  <td title="公司注册地址">注册地址</td>
+                  <td id="address">-</td>
+                </tr>
+                <tr>
+                  <td>官方网站</td>
+                  <td id="website">-</td>
+                </tr>
+                <tr>
+                  <td>电子邮箱</td>
+                  <td id="email">-</td>
+                </tr>
+                <tr>
+                  <td>成立日期</td>
+                  <td id="setupDate">-</td>
+                </tr>
+                <tr>
+                  <td>注册资本</td>
+                  <td id="regCapital">-</td>
+                </tr>
+              </table>
+          </div>
+        </div>
+        
+          <div class="business-item">
+            <h4>主营业务</h4>
+            <div id="mainBusiness" class="business-description">-</div>
+          </div>
+          
+          <div class="business-item">
+            <h4>公司简介</h4>
+            <div id="businessDesc" class="business-description">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class StockDetail {
+      constructor() {
+        this.stockData = null;
+        this.initializeElements();
+        this.loadStockData();
+      }
+      
+      initializeElements() {
+        this.loadingIndicator = document.getElementById('loadingIndicator');
+        this.errorMessage = document.getElementById('errorMessage');
+        this.stockDetail = document.getElementById('stockDetail');
+      }
+
+      async loadStockData() {
+        try {
+          // 从URL参数获取stockid和date
+          const urlParams = new URLSearchParams(window.location.search);
+          const stockid = urlParams.get('stockid');
+          const date = urlParams.get('date');
+          
+          if (!stockid || !date) {
+            throw new Error('缺少必要参数：stockid或date');
+          }
+
+          // 加载指定日期的数据文件
+          const response = await fetch(`./assets/${date}.json`);
+          if (!response.ok) {
+            throw new Error(`无法加载 ${date} 的数据文件`);
+          }
+
+          const allData = await response.json();
+          
+          // 根据stockid查找对应的股票数据
+          this.stockData = allData.find(item => item.stockid === stockid);
+          
+          if (!this.stockData) {
+            throw new Error(`未找到stockid为 ${stockid} 的股票数据`);
+          }
+
+          this.renderStockDetail();
+        } catch (error) {
+          this.showError(`加载股票数据失败: ${error.message}`);
+        }
+      }
+
+      renderStockDetail() {
+        if (!this.stockData) return;
+
+        const data = this.stockData;
+
+        // 基础信息
+        document.getElementById('stockName').textContent = data.company || 'N/A';
+        document.getElementById('stockSymbol').textContent = data.symbol || 'N/A';
+        
+        // 更新页面标题
+        document.title = `${data.company || data.symbol || 'N/A'} - 股票详情 - HANAI · WEALTH`;
+        
+        const board = data.board || this.detectStockBoard(data.symbol);
+        const boardElement = document.getElementById('stockBoard');
+        boardElement.textContent = board;
+        boardElement.className = `board-tag ${this.getBoardClass(board)}`;
+
+        // 价格信息
+        document.getElementById('currentPrice').textContent = this.formatPrice(data.price);
+        
+        const changeElement = document.getElementById('priceChange');
+        const changeValue = data.p_pct_change;
+        if (changeValue !== undefined) {
+          changeElement.textContent = `${changeValue.toFixed(2)}%`;
+          changeElement.style.color = changeValue >= 0 ? '#ef4444' : '#10b981';
+        }
+
+        document.getElementById('marketCap').textContent = this.formatMarketCap(data.mktcap_norm_currency);
+        
+        const scoreElement = document.getElementById('gfScore');
+        scoreElement.textContent = data.gf_score || 'N/A';
+        scoreElement.style.color = this.getScoreColor(data.gf_score);
+
+        // 估值信息
+        const gfValuationElement = document.getElementById('gfValuation');
+        const gfValuation = data.gf_valuation;
+        gfValuationElement.innerHTML = `
+          <span class="gf-valuation gf-${gfValuation || 0}">
+            ${gfValuation || 'N/A'}
+          </span>
+          <span style="margin-left: 10px; font-weight: 700; color: ${this.getValuationColor(gfValuation)};">
+            ${this.getValuationDescription(gfValuation)}
+          </span>
+        `;
+
+        document.getElementById('gfValue').textContent = data.gf_value ? `¥${data.gf_value.toFixed(2)}` : 'N/A';
+        document.getElementById('peTTM').textContent = this.formatPE(data.pettm);
+        document.getElementById('peHigh').textContent = this.formatPE(data.pettmhigh);
+        document.getElementById('peLow').textContent = this.formatPE(data.pettmlow);
+
+        // 财务指标
+        document.getElementById('dividendYield').textContent = data.yield ? `${data.yield.toFixed(2)}%` : 'N/A';
+        document.getElementById('grossMargin').textContent = data.grossmargin ? `${data.grossmargin.toFixed(2)}%` : 'N/A';
+        document.getElementById('netMargin').textContent = data.net_margain ? `${data.net_margain.toFixed(2)}%` : 'N/A';
+        document.getElementById('freeCashFlow').textContent = this.formatCashFlow(data.total_free_cash_flow);
+        document.getElementById('incomeGrowth').textContent = data.total_netincome_growth_10y ? `${data.total_netincome_growth_10y.toFixed(2)}%` : 'N/A';
+
+        // 价格区间
+        document.getElementById('price10yHigh').textContent = this.formatPrice(data.price10yhigh);
+        document.getElementById('price10yLow').textContent = this.formatPrice(data.price10ylow);
+        document.getElementById('return10y').textContent = data.pchange_10y ? `${data.pchange_10y.toFixed(2)}%` : 'N/A';
+        document.getElementById('sma20').textContent = data.sma_20 ? `¥${data.sma_20.toFixed(2)}` : 'N/A';
+        document.getElementById('sma50').textContent = data.sma_50 ? `¥${data.sma_50.toFixed(2)}` : 'N/A';
+        document.getElementById('sma200').textContent = data.sma_200 ? `¥${data.sma_200.toFixed(2)}` : 'N/A';
+
+        // 评级信息
+        this.renderRankStars('rankGfValue', 'rankGfValueText', data.rank_gf_value);
+        this.renderRankStars('rankGrowth', 'rankGrowthText', data.rank_growth);
+        this.renderRankStars('rankMomentum', 'rankMomentumText', data.rank_momentum);
+        this.renderRankStars('rankProfitability', 'rankProfitabilityText', data.rank_profitability);
+        this.renderRankStars('rankBalancesheet', 'rankBalancesheetText', data.rank_balancesheet);
+
+        // 公司信息
+        document.getElementById('industry').textContent = data.industry || 'N/A';
+        document.getElementById('sector').textContent = data.sector || 'N/A';
+        document.getElementById('group').textContent = data.group || 'N/A';
+
+        if (data.business_descrpt) {
+          const business = data.business_descrpt;
+          document.getElementById('chairman').textContent = business.chairman || 'N/A';
+          document.getElementById('manager').textContent = business.manager || 'N/A';
+          document.getElementById('address').textContent = business.address || 'N/A';
+          document.getElementById('website').textContent = business.website || 'N/A';
+          document.getElementById('email').textContent = business.email || 'N/A';
+          document.getElementById('setupDate').textContent = this.formatDate(business.setup_date) || 'N/A';
+          document.getElementById('regCapital').textContent = business.reg_capital ? `${business.reg_capital.toFixed(2)}万` : 'N/A';
+          document.getElementById('mainBusiness').textContent = business.main_business || 'N/A';
+          document.getElementById('businessDesc').textContent = business.descrpt || 'N/A';
+        } else {
+          document.getElementById('chairman').textContent = 'N/A';
+          document.getElementById('manager').textContent = 'N/A';
+          document.getElementById('address').textContent = 'N/A';
+          document.getElementById('website').textContent = 'N/A';
+          document.getElementById('email').textContent = 'N/A';
+          document.getElementById('setupDate').textContent = 'N/A';
+          document.getElementById('regCapital').textContent = 'N/A';
+          document.getElementById('mainBusiness').textContent = 'N/A';
+          document.getElementById('businessDesc').textContent = 'N/A';
+        }
+
+        this.showStockDetail();
+      }
+
+      renderRankStars(starsId, textId, rankValue) {
+        const starsContainer = document.getElementById(starsId);
+        const textElement = document.getElementById(textId);
+        
+        if (!rankValue) {
+          starsContainer.innerHTML = '';
+          textElement.textContent = 'N/A';
+          return;
+        }
+
+        const value = typeof rankValue === 'object' ? rankValue.value : rankValue;
+        const color = typeof rankValue === 'object' ? rankValue.color : 'gray';
+        
+        let stars = '';
+        for (let i = 1; i <= 10; i++) {
+          const filled = i <= value ? 'filled' : '';
+          stars += `<div class="star ${filled}"></div>`;
+        }
+        
+        starsContainer.innerHTML = stars;
+        textElement.textContent = `${value}/10`;
+        textElement.style.color = this.getRankColor(color);
+      }
+
+      getRankColor(color) {
+        const colorMap = {
+          'green': '#10b981',
+          'orange': '#f59e0b', 
+          'red': '#ef4444',
+          'gray': '#6b7280'
+        };
+        return colorMap[color] || '#6b7280';
+      }
+
+      detectStockBoard(symbol) {
+        if (!symbol || typeof symbol !== 'string') {
+          return '主板';
+        }
+        
+        const code = symbol.trim();
+        
+        if (/^(000|001|002|003|600|601|603|605)/.test(code)) {
+          return '主板';
+        }
+        
+        if (/^(300|301)/.test(code)) {
+          return '创业板';
+        }
+        
+        if (/^688/.test(code)) {
+          return '科创板';
+        }
+        
+        if (/^(43|83|87|92)/.test(code)) {
+          return '北证';
+        }
+        
+        return '主板';
+      }
+      
+      getBoardClass(board) {
+        const classMap = {
+          '主板': 'board-main',
+          '创业板': 'board-growth',
+          '科创板': 'board-star',
+          '北证': 'board-north'
+        };
+        return classMap[board] || 'board-main';
+      }
+      
+      formatPrice(price) {
+        if (!price) return 'N/A';
+        if (typeof price === 'string') {
+          return price;
+        }
+        return `¥${price.toFixed(2)}`;
+      }
+
+      formatPE(pe) {
+        if (!pe || pe <= 0) return 'N/A';
+        if (pe > 1000) return '>1000';
+        return pe.toFixed(1);
+      }
+
+      formatMarketCap(value) {
+        if (!value) return 'N/A';
+        
+        if (value >= 1e12) {
+          return (value / 1e12).toFixed(2) + '万亿';
+        } else if (value >= 1e8) {
+          return (value / 1e8).toFixed(2) + '亿';
+        } else if (value >= 1e4) {
+          return (value / 1e4).toFixed(2) + '万';
+        }
+        return value.toFixed(2);
+      }
+
+      formatCashFlow(value) {
+        if (value === null || value === undefined || isNaN(value)) return 'N/A';
+        // 统一用人民币金额常用单位：万、亿、万亿
+        const absValue = Math.abs(value);
+        let unit = '';
+        let num = value;
+        if (absValue >= 1e12) {
+          num = value / 1e12;
+          unit = '万亿';
+        } else if (absValue >= 1e8) {
+          num = value / 1e8;
+          unit = '亿';
+        } else if (absValue >= 1e4) {
+          num = value / 1e4;
+          unit = '万';
+        } else {
+          num = value;
+          unit = '';
+        }
+        return num.toFixed(2) + unit;
+      }
+
+      formatDate(dateStr) {
+        if (!dateStr) return 'N/A';
+        const str = dateStr.toString();
+        if (str.length === 8) {
+          return `${str.substr(0,4)}-${str.substr(4,2)}-${str.substr(6,2)}`;
+        }
+        return dateStr;
+      }
+
+      getScoreColor(score) {
+        if (!score) return '#94a3b8';
+        if (score >= 80) return '#10b981';
+        if (score >= 60) return '#f59e0b';
+        if (score >= 40) return '#ef4444';
+        return '#6b7280';
+      }
+      
+      getValuationDescription(valuation) {
+        const descriptions = {
+          0: '数据不足',
+          2: '价值陷阱嫌疑',
+          3: '严重低估',
+          4: '低估',
+          5: '合理范围',
+          6: '高估',
+          7: '严重高估'
+        };
+        return descriptions[valuation] || '未知';
+      }
+      
+      getValuationColor(valuation) {
+        const colors = {
+          0: '#94a3b8',
+          2: '#dc2626',
+          3: '#059669',
+          4: '#0891b2',
+          5: '#7c3aed',
+          6: '#ea580c',
+          7: '#dc2626'
+        };
+        return colors[valuation] || '#94a3b8';
+      }
+
+      showStockDetail() {
+        this.loadingIndicator.style.display = 'none';
+        this.errorMessage.style.display = 'none';
+        this.stockDetail.style.display = 'block';
+      }
+      
+      showError(message) {
+        this.loadingIndicator.style.display = 'none';
+        this.stockDetail.style.display = 'none';
+        this.errorMessage.style.display = 'block';
+        this.errorMessage.textContent = message;
+      }
+    }
+
+    // 返回列表页函数
+    function goBack() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const date = urlParams.get('date');
+      
+      // 返回到列表页，并保持日期选择
+      const listUrl = date ? `index.html?date=${encodeURIComponent(date)}` : 'index.html';
+      window.location.href = listUrl;
+    }
+
+    // 初始化详情页
+    document.addEventListener('DOMContentLoaded', () => {
+      new StockDetail();
+    });
+  </script>
+</body>
+</html>
