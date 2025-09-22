@@ -59,6 +59,7 @@ const fiedConfig = {
   stockid: '股票id',
   business_descrpt: '业务说明',
   company: '公司',
+  exchange_: '交易所',
   board: '上市市场', // 主板、创业板、科创板、北证
 
   price: '今日股价',
