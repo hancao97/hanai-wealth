@@ -173,8 +173,8 @@
     
     .filter-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
       margin-bottom: 16px;
     }
     
@@ -187,16 +187,16 @@
      .filter-group label {
        font-weight: 500;
        color: #64748b;
-       font-size: 14px;
+       font-size: 13px;
      }
     
      .filter-input {
-       padding: 10px 32px 10px 12px;
+       padding: 8px 24px 8px 10px;
        background: white;
        border: 1px solid #d1d5db;
        border-radius: 8px;
       color: var(--text);
-       font-size: 14px;
+       font-size: 13px;
        transition: border-color 0.2s ease;
      }
      
@@ -252,15 +252,15 @@
       white-space: nowrap;
     }
     
-      .table th:nth-child(1), .table td:nth-child(1) { width: 120px; } /* 公司名称 */
-      .table th:nth-child(2), .table td:nth-child(2) { width: 80px; }  /* 股票代码 */
-      .table th:nth-child(3), .table td:nth-child(3) { width: 100px; } /* 行业 */
-      .table th:nth-child(4), .table td:nth-child(4) { width: 70px; }  /* 板块 */
-      .table th:nth-child(5), .table td:nth-child(5) { width: 80px; }  /* 价格 */
-      .table th:nth-child(6), .table td:nth-child(6) { width: 80px; }  /* 涨跌幅 */
-      .table th:nth-child(7), .table td:nth-child(7) { width: 70px; }  /* 市盈率 */
-      .table th:nth-child(8), .table td:nth-child(8) { width: 80px; }  /* GF评分 */
-      .table th:nth-child(9), .table td:nth-child(9) { width: 100px; } /* 估值说明 */
+      .table th:nth-child(1), .table td:nth-child(1) { width: 100px; } /* 公司信息 */
+      .table th:nth-child(2), .table td:nth-child(2) { width: 150px; } /* 行业 */
+      .table th:nth-child(3), .table td:nth-child(3) { width: 70px; }  /* 板块 */
+      .table th:nth-child(4), .table td:nth-child(4) { width: 80px; }  /* 价格 */
+      .table th:nth-child(5), .table td:nth-child(5) { width: 80px; }  /* 涨跌幅 */
+      .table th:nth-child(6), .table td:nth-child(6) { width: 70px; }  /* 市盈率 */
+      .table th:nth-child(7), .table td:nth-child(7) { width: 70px; }  /* 股息率 */
+      .table th:nth-child(8), .table td:nth-child(8) { width: 80px; }  /* 价值评分 */
+      .table th:nth-child(9), .table td:nth-child(9) { width: 100px; } /* 价值评估 */
       .table th:nth-child(10), .table td:nth-child(10) { width: 100px; } /* 市值 */
     
      .table th {
@@ -300,6 +300,7 @@
     }
     
     .gf-0 { background: #6b7280; color: white; } /* 数据不足 - 灰色 */
+    .gf-1 { background: #dc2626; color: white; } /* 数据长久未更新，谨慎使用 - 红色 */
     .gf-2 { background: #dc2626; color: white; } /* 价值陷阱嫌疑 - 红色 */
     .gf-3 { background: #059669; color: white; } /* 严重低估 - 深绿色 */
     .gf-4 { background: #10b981; color: white; } /* 低估 - 绿色 */
@@ -329,9 +330,142 @@
     .board-main { background: #3b82f6; color: white; } /* 主板 - 蓝色 */
     .board-growth { background: #10b981; color: white; } /* 创业板 - 绿色 */
     .board-star { background: #f59e0b; color: white; } /* 科创板 - 橙色 */
-    .board-north { background: #8b5cf6; color: white; } /* 北证 - 紫色 */
-    
-     .no-results {
+     .board-north { background: #8b5cf6; color: white; } /* 北证 - 紫色 */
+     
+     .company-info {
+       display: flex;
+       flex-direction: column;
+       gap: 2px;
+     }
+     
+     .company-name {
+       font-weight: 600;
+       font-size: 13px;
+       color: #1e40af;
+       line-height: 1.2;
+     }
+     
+     .company-symbol {
+       font-size: 11px;
+       color: #64748b;
+       font-weight: 500;
+     }
+     
+     /* 股息率统计样式 */
+     .dividend-stats-container {
+       background: white;
+       border: 1px solid #e2e8f0;
+       border-radius: 16px;
+       padding: 24px;
+       margin: 24px 0;
+       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+     }
+     
+     .dividend-stats-title {
+       margin: 0 0 20px 0;
+       font-size: 18px;
+       font-weight: 700;
+       color: #1e293b;
+       text-align: center;
+       padding-bottom: 8px;
+       border-bottom: 2px solid #e2e8f0;
+     }
+     
+     .dividend-stats-grid {
+       display: grid;
+       grid-template-columns: repeat(6, 1fr);
+       gap: 12px;
+     }
+     
+     .dividend-stat-item {
+       background: white;
+       border: 2px solid #e2e8f0;
+       border-radius: 12px;
+       padding: 12px 8px;
+       text-align: center;
+       transition: transform 0.2s ease, box-shadow 0.2s ease;
+     }
+     
+     .dividend-stat-item:hover {
+       transform: translateY(-2px);
+       box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+     }
+     
+     .dividend-stat-item.clickable {
+       cursor: pointer;
+     }
+     
+     .dividend-stat-item.clickable:hover {
+       transform: translateY(-3px);
+       box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+     }
+     
+     .dividend-stat-item.active {
+       background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+       border-color: #1d4ed8;
+       transform: translateY(-2px);
+       box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+     }
+     
+     .dividend-stat-item.active .dividend-stat-value {
+       color: white !important;
+     }
+     
+     .dividend-stat-item.active .dividend-stat-label {
+       color: rgba(255, 255, 255, 0.95) !important;
+     }
+     
+     .dividend-stat-item.active .dividend-stat-desc {
+       color: rgba(255, 255, 255, 0.8) !important;
+     }
+     
+     .dividend-stat-item.active:hover {
+       background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+       transform: translateY(-3px);
+       box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+     }
+     
+     .dividend-stat-value {
+       font-size: 20px;
+       font-weight: 700;
+       margin-bottom: 6px;
+       line-height: 1.1;
+     }
+     
+     .dividend-stat-label {
+       font-size: 11px;
+       font-weight: 600;
+       margin-bottom: 3px;
+       color: #334155;
+       line-height: 1.2;
+     }
+     
+     .dividend-stat-desc {
+       font-size: 9px;
+       color: #64748b;
+       line-height: 1.2;
+     }
+     
+     /* 不同股息率水平的颜色 */
+     .dividend-low { border-color: #94a3b8; background: #f8fafc; }
+     .dividend-low .dividend-stat-value { color: #94a3b8; }
+     
+     .dividend-medium { border-color: #3b82f6; background: #dbeafe; }
+     .dividend-medium .dividend-stat-value { color: #3b82f6; }
+     
+     .dividend-high { border-color: #10b981; background: #d1fae5; }
+     .dividend-high .dividend-stat-value { color: #10b981; }
+     
+     .dividend-super-high { border-color: #f59e0b; background: #fef3c7; }
+     .dividend-super-high .dividend-stat-value { color: #f59e0b; }
+     
+     .dividend-abnormal { border-color: #ef4444; background: #fee2e2; }
+     .dividend-abnormal .dividend-stat-value { color: #ef4444; }
+     
+     .dividend-no-data { border-color: #6b7280; background: #f9fafb; }
+     .dividend-no-data .dividend-stat-value { color: #6b7280; }
+      
+       .no-results {
        text-align: center;
        padding: 40px;
        color: #64748b;
@@ -411,120 +545,6 @@
       border-radius: 2px;
     }
     
-    .stats-container {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-      display: flex;
-      flex-direction: column;
-      gap: 32px;
-      margin-top: 24px;
-    }
-    
-    .stats-section {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    
-    .stats-section-title {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 700;
-      color: #1e293b;
-      text-align: center;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #e2e8f0;
-    }
-    
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-    }
-    
-     .stat-item {
-       background: white;
-       border: 1px solid #e2e8f0;
-       border-radius: 12px;
-       padding: 16px;
-       text-align: center;
-       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-       transition: transform 0.2s ease, box-shadow 0.2s ease;
-     }
-     
-     .stat-item.clickable {
-       cursor: pointer;
-     }
-     
-     .stat-item.clickable:hover {
-       transform: translateY(-2px);
-       box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-       border-color: var(--accent);
-     }
-     
-     .stat-item.active {
-       background: linear-gradient(135deg, var(--accent), var(--primary));
-       border-color: var(--accent);
-       color: white;
-     }
-     
-     .stat-item.active .stat-value,
-     .stat-item.active .stat-label {
-       color: white;
-     }
-    
-     /* 不同类型统计卡片的颜色 */
-     .stat-total { border-color: #10b981; background: #ecfdf5; }
-     .stat-severe-undervalued { border-color: #059669; background: #d1fae5; }
-     .stat-undervalued { border-color: #10b981; background: #ecfdf5; }
-     .stat-fair { border-color: #3b82f6; background: #dbeafe; }
-     .stat-overvalued { border-color: #f59e0b; background: #fef3c7; }
-     .stat-severe-overvalued { border-color: #dc2626; background: #fee2e2; }
-     .stat-trap { border-color: #dc2626; background: #fee2e2; }
-     .stat-no-data { border-color: #6b7280; background: #f9fafb; }
-     .stat-rising { border-color: #dc2626; background: #fee2e2; }
-     .stat-falling { border-color: #10b981; background: #ecfdf5; }
-     .stat-board-main { border-color: #3b82f6; background: #dbeafe; }
-     .stat-board-growth { border-color: #10b981; background: #ecfdf5; }
-     .stat-board-star { border-color: #f59e0b; background: #fef3c7; }
-     .stat-board-north { border-color: #8b5cf6; background: #f3e8ff; }
-    
-     .stat-item:hover {
-       transform: translateY(-2px);
-       box-shadow: 0 12px 24px rgba(0,0,0,0.15);
-     }
-    
-     .stat-value {
-       font-size: 28px;
-       font-weight: 700;
-       color: #1e293b;
-       margin-bottom: 4px;
-     }
-    
-     /* 不同类型统计数值的颜色 */
-     .stat-total .stat-value { color: #10b981; }
-     .stat-severe-undervalued .stat-value { color: #059669; }
-     .stat-undervalued .stat-value { color: #10b981; }
-     .stat-fair .stat-value { color: #3b82f6; }
-     .stat-overvalued .stat-value { color: #f59e0b; }
-     .stat-severe-overvalued .stat-value { color: #dc2626; }
-     .stat-trap .stat-value { color: #dc2626; }
-     .stat-no-data .stat-value { color: #6b7280; }
-     .stat-rising .stat-value { color: #dc2626; }
-     .stat-falling .stat-value { color: #10b981; }
-     .stat-board-main .stat-value { color: #3b82f6; }
-     .stat-board-growth .stat-value { color: #10b981; }
-     .stat-board-star .stat-value { color: #f59e0b; }
-     .stat-board-north .stat-value { color: #8b5cf6; }
-    
-     .stat-label {
-       font-size: 14px;
-       color: #64748b;
-       font-weight: 500;
-     }
      
      /* 分页样式 */
      .pagination {
@@ -602,17 +622,18 @@
         grid-template-columns: 1fr;
       }
       
-      .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+      .filter-row {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
       }
       
-      .stats-section-title {
-        font-size: 16px;
+      .filter-input {
+        padding: 6px 16px 6px 8px;
+        font-size: 12px;
       }
       
-      .stats-container {
-        gap: 24px;
-        padding: 16px;
+      .filter-group label {
+        font-size: 12px;
       }
       
       .pagination {
@@ -629,6 +650,78 @@
       .pagination-info {
         font-size: 12px;
         margin: 0 8px;
+      }
+      
+      .dividend-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      
+      .dividend-stat-item {
+        padding: 10px 6px;
+      }
+      
+      .dividend-stat-value {
+        font-size: 18px;
+      }
+      
+      .dividend-stat-label {
+        font-size: 10px;
+      }
+      
+      .dividend-stat-desc {
+        font-size: 8px;
+      }
+      
+      .dividend-stats-title {
+        font-size: 16px;
+      }
+      
+      .dividend-stats-container {
+        padding: 16px;
+        margin: 16px 0;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .filter-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+      }
+      
+      .filter-input {
+        padding: 5px 12px 5px 6px;
+        font-size: 11px;
+      }
+      
+      .filter-group label {
+        font-size: 11px;
+      }
+      
+      .dividend-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+      }
+      
+      .dividend-stat-item {
+        padding: 8px 4px;
+      }
+      
+      .dividend-stat-value {
+        font-size: 16px;
+      }
+      
+      .dividend-stat-label {
+        font-size: 9px;
+      }
+      
+      .dividend-stat-desc {
+        font-size: 7px;
+      }
+      
+      .dividend-stats-container {
+        padding: 12px;
+        margin: 12px 0;
       }
     }
   </style>
@@ -654,9 +747,9 @@
     <!-- 仪表板 -->
     <div class="dashboard" id="dashboard" style="display: none;">
       <div class="dashboard-row">
-        <!-- GF估值分布 -->
+        <!-- 价值评估分布 -->
         <div class="dashboard-card">
-          <h3>GF估值分布</h3>
+          <h3>价值评估分布</h3>
           <div class="chart-container">
             <div id="valuationChart" style="width: 100%; height: 300px;"></div>
           </div>
@@ -671,81 +764,43 @@
         </div>
       </div>
       
-      <!-- 完整统计数据 -->
-      <div class="stats-container">
-        <!-- 价值分布统计 -->
-        <div class="stats-section">
-          <h3 class="stats-section-title">价值分布统计</h3>
-            <div class="stats-grid" id="valuationStatsGrid">
-              <div class="stat-item stat-severe-undervalued clickable" data-valuation="3" onclick="stockFilter.filterByValuation(3)">
-                <div class="stat-value" id="severeUndervaluedCount">0</div>
-                <div class="stat-label">严重低估</div>
-              </div>
-              <div class="stat-item stat-undervalued clickable" data-valuation="4" onclick="stockFilter.filterByValuation(4)">
-                <div class="stat-value" id="undervaluedCount">0</div>
-                <div class="stat-label">低估</div>
-              </div>
-              <div class="stat-item stat-fair clickable" data-valuation="5" onclick="stockFilter.filterByValuation(5)">
-                <div class="stat-value" id="fairCount">0</div>
-                <div class="stat-label">合理范围</div>
-              </div>
-              <div class="stat-item stat-overvalued clickable" data-valuation="6" onclick="stockFilter.filterByValuation(6)">
-                <div class="stat-value" id="overvaluedCount">0</div>
-                <div class="stat-label">高估</div>
-              </div>
-              <div class="stat-item stat-severe-overvalued clickable" data-valuation="7" onclick="stockFilter.filterByValuation(7)">
-                <div class="stat-value" id="severeOvervaluedCount">0</div>
-                <div class="stat-label">严重高估</div>
-              </div>
-              <div class="stat-item stat-trap clickable" data-valuation="2" onclick="stockFilter.filterByValuation(2)">
-                <div class="stat-value" id="trapCount">0</div>
-                <div class="stat-label">价值陷阱</div>
-              </div>
-              <div class="stat-item stat-no-data clickable" data-valuation="0" onclick="stockFilter.filterByValuation(0)">
-                <div class="stat-value" id="noDataCount">0</div>
-                <div class="stat-label">无数据</div>
-              </div>
-            </div>
-        </div>
-        
-        <!-- 涨跌分布统计 -->
-        <div class="stats-section">
-          <h3 class="stats-section-title">涨跌分布统计</h3>
-          <div class="stats-grid" id="changeStatsGrid">
-            <div class="stat-item stat-rising">
-              <div class="stat-value" id="risingCount">0</div>
-              <div class="stat-label">上涨股票</div>
-            </div>
-            <div class="stat-item stat-falling">
-              <div class="stat-value" id="fallingCount">0</div>
-              <div class="stat-label">下跌股票</div>
-            </div>
+      <!-- 股息率统计 -->
+      <div class="dividend-stats-container">
+        <h3 class="dividend-stats-title">股息率分布统计</h3>
+        <div class="dividend-stats-grid" id="dividendStatsGrid">
+          <div class="dividend-stat-item dividend-low clickable" data-dividend="low" onclick="stockFilter.filterByDividend('low')">
+            <div class="dividend-stat-value" id="lowDividendCount">0</div>
+            <div class="dividend-stat-label">低股息 (< 1%)</div>
+            <div class="dividend-stat-desc">分红微弱，典型成长股</div>
           </div>
-        </div>
-        
-        <!-- 板块分布统计 -->
-        <div class="stats-section">
-          <h3 class="stats-section-title">板块分布统计</h3>
-          <div class="stats-grid" id="boardStatsGrid">
-            <div class="stat-item stat-board-main clickable" data-board="主板" onclick="stockFilter.filterByBoard('主板')">
-              <div class="stat-value" id="mainBoardCount">0</div>
-              <div class="stat-label">主板</div>
-            </div>
-            <div class="stat-item stat-board-growth clickable" data-board="创业板" onclick="stockFilter.filterByBoard('创业板')">
-              <div class="stat-value" id="growthBoardCount">0</div>
-              <div class="stat-label">创业板</div>
-            </div>
-            <div class="stat-item stat-board-star clickable" data-board="科创板" onclick="stockFilter.filterByBoard('科创板')">
-              <div class="stat-value" id="starBoardCount">0</div>
-              <div class="stat-label">科创板</div>
-            </div>
-            <div class="stat-item stat-board-north clickable" data-board="北证" onclick="stockFilter.filterByBoard('北证')">
-              <div class="stat-value" id="northBoardCount">0</div>
-              <div class="stat-label">北证</div>
-            </div>
+          <div class="dividend-stat-item dividend-medium clickable" data-dividend="medium" onclick="stockFilter.filterByDividend('medium')">
+            <div class="dividend-stat-value" id="mediumDividendCount">0</div>
+            <div class="dividend-stat-label">中等股息 (1-3%)</div>
+            <div class="dividend-stat-desc">接近市场平均水平</div>
+          </div>
+          <div class="dividend-stat-item dividend-high clickable" data-dividend="high" onclick="stockFilter.filterByDividend('high')">
+            <div class="dividend-stat-value" id="highDividendCount">0</div>
+            <div class="dividend-stat-label">高股息 (3-5%)</div>
+            <div class="dividend-stat-desc">高于大盘，稳定现金流</div>
+          </div>
+          <div class="dividend-stat-item dividend-super-high clickable" data-dividend="super-high" onclick="stockFilter.filterByDividend('super-high')">
+            <div class="dividend-stat-value" id="superHighDividendCount">0</div>
+            <div class="dividend-stat-label">超高股息 (5-8%)</div>
+            <div class="dividend-stat-desc">银行煤炭等传统行业</div>
+          </div>
+          <div class="dividend-stat-item dividend-abnormal clickable" data-dividend="abnormal" onclick="stockFilter.filterByDividend('abnormal')">
+            <div class="dividend-stat-value" id="abnormalDividendCount">0</div>
+            <div class="dividend-stat-label">异常高股息 (> 8%)</div>
+            <div class="dividend-stat-desc">需谨慎，可能不可持续</div>
+          </div>
+          <div class="dividend-stat-item dividend-no-data clickable" data-dividend="no-data" onclick="stockFilter.filterByDividend('no-data')">
+            <div class="dividend-stat-value" id="noDividendDataCount">0</div>
+            <div class="dividend-stat-label">无股息数据</div>
+            <div class="dividend-stat-desc">缺少分红信息</div>
           </div>
         </div>
       </div>
+      
     </div>
     
     <div class="filters">
@@ -766,6 +821,7 @@
           <select id="valuationFilter" class="filter-input">
             <option value="">所有估值</option>
             <option value="0">数据不足</option>
+            <option value="1">数据长久未更新，谨慎使用</option>
             <option value="2">价值陷阱嫌疑</option>
             <option value="3">严重低估</option>
             <option value="4">低估</option>
@@ -792,6 +848,19 @@
              <option value="北证">北证</option>
            </select>
          </div>
+         
+         <div class="filter-group">
+           <label for="dividendFilter">股息率</label>
+           <select id="dividendFilter" class="filter-input">
+             <option value="">所有股息率</option>
+             <option value="low">低股息 (< 1%)</option>
+             <option value="medium">中等股息 (1-3%)</option>
+             <option value="high">高股息 (3-5%)</option>
+             <option value="super-high">超高股息 (5-8%)</option>
+             <option value="abnormal">异常高股息 (> 8%)</option>
+             <option value="no-data">无股息数据</option>
+           </select>
+         </div>
       </div>
     </div>
     
@@ -807,15 +876,15 @@
       <table class="table">
         <thead>
           <tr>
-             <th>公司名称</th>
-             <th>股票代码</th>
+             <th>公司信息</th>
              <th>行业</th>
              <th>板块</th>
              <th>价格</th>
              <th>涨跌幅</th>
              <th>市盈率</th>
-             <th>GF评分</th>
-             <th>估值说明</th>
+             <th>股息率</th>
+             <th>价值评分</th>
+             <th>价值评估</th>
              <th>市值</th>
           </tr>
         </thead>
@@ -854,6 +923,7 @@
          this.valuationFilter = document.getElementById('valuationFilter');
          this.industryFilter = document.getElementById('industryFilter');
          this.boardFilter = document.getElementById('boardFilter');
+         this.dividendFilter = document.getElementById('dividendFilter');
         this.dataTable = document.getElementById('dataTable');
         this.resultsCount = document.getElementById('resultsCount');
         this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -872,6 +942,7 @@
          this.valuationFilter.addEventListener('change', () => this.applyFilters());
          this.industryFilter.addEventListener('change', () => this.applyFilters());
          this.boardFilter.addEventListener('change', () => this.applyFilters());
+         this.dividendFilter.addEventListener('change', () => this.applyFilters());
       }
       
       async loadDatesConfig() {
@@ -963,6 +1034,118 @@
         this.dateStatus.className = `date-status ${type}`;
       }
       
+      
+      updateDividendStats() {
+        if (!this.allData || this.allData.length === 0) {
+          return;
+        }
+        
+        // 统计各个股息率水平的数量
+        let lowDividend = 0;         // < 1%
+        let mediumDividend = 0;      // 1% - 3%
+        let highDividend = 0;        // 3% - 5%
+        let superHighDividend = 0;   // 5% - 8%
+        let abnormalDividend = 0;    // > 8%
+        let noDividendData = 0;      // 无数据
+        
+        this.allData.forEach(item => {
+          const yield_value = item.yield;
+          
+          // 检查是否有yield值
+          if (yield_value === null || yield_value === undefined || yield_value === '' || yield_value === 0) {
+            noDividendData++;
+            return;
+          }
+          
+            // 转换为数字
+            const numYield = parseFloat(yield_value);
+          
+          // 检查是否为有效数字
+          if (isNaN(numYield) || numYield < 0) {
+            noDividendData++;
+          } else if (numYield < 1) {
+            lowDividend++;
+          } else if (numYield < 3) {
+            mediumDividend++;
+          } else if (numYield < 5) {
+            highDividend++;
+          } else if (numYield <= 8) {
+            superHighDividend++;
+          } else {
+            abnormalDividend++;
+          }
+        });
+        
+        // 更新DOM - 添加安全检查
+        const updateElement = (id, value) => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.textContent = value.toLocaleString();
+          }
+        };
+        
+        updateElement('lowDividendCount', lowDividend);
+        updateElement('mediumDividendCount', mediumDividend);
+        updateElement('highDividendCount', highDividend);
+        updateElement('superHighDividendCount', superHighDividend);
+        updateElement('abnormalDividendCount', abnormalDividend);
+        updateElement('noDividendDataCount', noDividendData);
+      }
+      
+      // 获取股息率分类
+      getDividendCategory(yield_value) {
+        // 检查是否有yield值
+        if (yield_value === null || yield_value === undefined || yield_value === '' || yield_value === 0) {
+          return 'no-data';
+        }
+        
+        // 转换为数字
+        const numYield = parseFloat(yield_value);
+        
+        // 检查是否为有效数字
+        if (isNaN(numYield) || numYield < 0) {
+          return 'no-data';
+        } else if (numYield < 1) {
+          return 'low';
+        } else if (numYield < 3) {
+          return 'medium';
+        } else if (numYield < 5) {
+          return 'high';
+        } else if (numYield <= 8) {
+          return 'super-high';
+        } else {
+          return 'abnormal';
+        }
+      }
+      
+      // 股息率筛选功能
+      filterByDividend(dividend) {
+        if (this.dividendFilter.value === dividend) {
+          // 如果已经选择了该股息率，则清除筛选
+          this.dividendFilter.value = '';
+        } else {
+          // 设置股息率筛选
+          this.dividendFilter.value = dividend;
+        }
+        this.applyFilters();
+        this.updateDividendStatActiveState();
+      }
+      
+      // 更新股息率统计卡片的激活状态
+      updateDividendStatActiveState() {
+        const dividendItems = document.querySelectorAll('.dividend-stat-item[data-dividend]');
+        const selectedDividend = this.dividendFilter ? this.dividendFilter.value : '';
+        
+        dividendItems.forEach(item => {
+          const dividend = item.getAttribute('data-dividend');
+          if (dividend === selectedDividend) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
+      }
+      
       // 根据股票代码检测板块类型
       detectStockBoard(symbol) {
         if (!symbol || typeof symbol !== 'string') {
@@ -1008,7 +1191,7 @@
       
       applyFilters() {
         // 如果关键筛选器元素还没有初始化，跳过筛选
-        if (!this.companyFilter || !this.valuationFilter) {
+        if (!this.companyFilter || !this.valuationFilter || !this.dividendFilter) {
           return;
         }
         
@@ -1052,13 +1235,25 @@
              });
            }
          }
+         
+         // 股息率筛选
+         if (this.dividendFilter) {
+           const dividendValue = this.dividendFilter.value;
+           if (dividendValue) {
+             filtered = filtered.filter(item => {
+               const yield_value = item.yield;
+               const category = this.getDividendCategory(yield_value);
+               return category === dividendValue;
+             });
+           }
+         }
         
          this.filteredData = filtered;
          this.currentPage = 1; // 重置到第一页
          this.renderTable();
          this.updateResultsCount();
          this.renderPagination();
-         this.updateStatItemActiveState();
+         this.updateDividendStatActiveState();
       }
       
        renderTable() {
@@ -1082,9 +1277,13 @@
             const board = item.board || this.detectStockBoard(item.symbol);
             return `
            <tr class="table-row clickable" data-stockid="${item.stockid}" onclick="stockFilter.viewStockDetail(this)">
-             <td title="${this.escapeHtml(item.company || 'N/A')}">${this.escapeHtml(item.company || 'N/A')}</td>
-             <td><span class="symbol">${this.escapeHtml(item.symbol || 'N/A')}</span></td>
-             <td title="${this.escapeHtml(item.industry || 'N/A')}">${this.escapeHtml(this.truncateText(item.industry || 'N/A', 8))}</td>
+             <td>
+               <div class="company-info">
+                 <div class="company-name" title="${this.escapeHtml(item.company || 'N/A')}">${this.escapeHtml(this.truncateText(item.company || 'N/A', 15))}</div>
+                 <div class="company-symbol">${this.escapeHtml(item.symbol || 'N/A')}</div>
+               </div>
+             </td>
+             <td title="${this.escapeHtml(item.industry || 'N/A')}">${this.escapeHtml(this.truncateText(item.industry || 'N/A', 12))}</td>
              <td>
                <span class="board-tag ${this.getBoardClass(board)}">
                  ${board}
@@ -1095,6 +1294,7 @@
                ${this.formatPercentage(item.p_pct_change)}
              </td>
              <td class="pe-ratio">${this.formatPE(item.pettm)}</td>
+             <td class="dividend-yield">${this.formatDividendYield(item.yield)}</td>
              <td>
                <span class="gf-score" style="font-weight: 600; color: ${this.getScoreColor(item.gf_score)};">
                  ${item.gf_score || 'N/A'}
@@ -1112,6 +1312,7 @@
       getValuationDescription(valuation) {
         const descriptions = {
           0: '数据不足',
+          1: '数据长久未更新，谨慎使用',
           2: '价值陷阱嫌疑',
           3: '严重低估',
           4: '低估',
@@ -1125,6 +1326,7 @@
       getValuationColor(valuation) {
         const colors = {
           0: '#6b7280',  // 数据不足 - 灰色
+          1: '#dc2626',  // 数据长久未更新，谨慎使用 - 红色
           2: '#dc2626',  // 价值陷阱嫌疑 - 红色
           3: '#059669',  // 严重低估 - 深绿色
           4: '#10b981',  // 低估 - 绿色
@@ -1144,7 +1346,10 @@
         this.dashboard.style.display = 'block';
         this.updateValuationChart();
         this.updateChangeChart();
-        this.updateStats();
+        // 延迟执行股息率统计更新，确保DOM已渲染
+        setTimeout(() => {
+          this.updateDividendStats();
+        }, 100);
       }
       
       updateValuationChart() {
@@ -1160,43 +1365,72 @@
              borderColor: '#e2e8f0',
              textStyle: { color: '#334155' }
            },
-           legend: {
-             orient: 'horizontal',
-             bottom: '0%',
-             textStyle: { color: '#64748b', fontSize: 12 },
-             itemWidth: 12,
-             itemHeight: 12,
-             data: ['严重低估', '低估', '合理范围', '高估', '严重高估', '价值陷阱嫌疑', '数据不足']
-           },
            series: [{
-             name: 'GF估值分布',
+             name: '价值评估分布',
             type: 'pie',
-            radius: ['30%', '70%'],
-            center: ['50%', '45%'],
-            avoidLabelOverlap: false,
+            roseType: 'radius',
+            radius: ['45%', '75%'],
+            center: ['50%', '50%'],
+            avoidLabelOverlap: true,
+            padAngle: 2,
             itemStyle: {
-              borderRadius: 4,
-              borderColor: 'rgba(255,255,255,0.1)',
-              borderWidth: 1
+              borderRadius: 8,
+              borderColor: 'rgba(255,255,255,0.8)',
+              borderWidth: 2,
+              shadowBlur: 5,
+              shadowColor: 'rgba(0,0,0,0.08)',
+              shadowOffsetY: 2
             },
             label: {
-              show: false,
-              position: 'center'
+              show: true,
+              position: 'outside',
+              formatter: function(params) {
+                return `{name|${params.name}}\n{value|${params.value}个}`;
+              },
+              rich: {
+                name: {
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: '#334155',
+                  lineHeight: 18
+                },
+                value: {
+                  fontSize: 10,
+                  fontWeight: '500',
+                  color: '#64748b',
+                  lineHeight: 14
+                }
+              },
+              distanceToLabelLine: 5
             },
              emphasis: {
                label: {
-                 show: true,
-                 fontSize: '16',
-                 fontWeight: 'bold',
-                 color: '#334155'
+                 fontSize: '13',
+                 fontWeight: 'bold'
                },
                itemStyle: {
-                 shadowBlur: 10,
-                 shadowOffsetX: 0,
-                 shadowColor: 'rgba(0, 0, 0, 0.3)'
-               }
+                 shadowBlur: 12,
+                 shadowOffsetY: 3,
+                 shadowColor: 'rgba(0, 0, 0, 0.15)',
+                 borderWidth: 3,
+                 borderColor: 'rgba(255,255,255,0.9)'
+               },
+               scale: true,
+               scaleSize: 5
              },
-            labelLine: { show: false },
+            labelLine: {
+              show: true,
+              length: 12,
+              length2: 8,
+              smooth: true,
+              lineStyle: {
+                color: '#cbd5e1',
+                width: 1.8,
+                type: 'solid',
+                cap: 'round',
+                opacity: 0.8
+              }
+            },
             data: valuationCounts.map(item => ({
               value: item.count,
               name: item.label,
@@ -1234,43 +1468,72 @@
              borderColor: '#e2e8f0',
              textStyle: { color: '#334155' }
            },
-           legend: {
-             orient: 'horizontal',
-             bottom: '0%',
-             textStyle: { color: '#64748b', fontSize: 12 },
-             itemWidth: 12,
-             itemHeight: 12,
-             data: ['上涨5%以上', '上涨2-5%', '上涨0-2%', '平盘', '下跌0-2%', '下跌2-5%', '下跌5%以上']
-           },
            series: [{
              name: '涨跌幅分布',
             type: 'pie',
-            radius: ['30%', '70%'],
-            center: ['50%', '45%'],
-            avoidLabelOverlap: false,
+            roseType: 'radius',
+            radius: ['45%', '75%'],
+            center: ['50%', '50%'],
+            avoidLabelOverlap: true,
+            padAngle: 2,
             itemStyle: {
-              borderRadius: 4,
-              borderColor: 'rgba(255,255,255,0.1)',
-              borderWidth: 1
+              borderRadius: 8,
+              borderColor: 'rgba(255,255,255,0.8)',
+              borderWidth: 2,
+              shadowBlur: 5,
+              shadowColor: 'rgba(0,0,0,0.08)',
+              shadowOffsetY: 2
             },
             label: {
-              show: false,
-              position: 'center'
+              show: true,
+              position: 'outside',
+              formatter: function(params) {
+                return `{name|${params.name}}\n{value|${params.value}个}`;
+              },
+              rich: {
+                name: {
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: '#334155',
+                  lineHeight: 18
+                },
+                value: {
+                  fontSize: 10,
+                  fontWeight: '500',
+                  color: '#64748b',
+                  lineHeight: 14
+                }
+              },
+              distanceToLabelLine: 5
             },
              emphasis: {
                label: {
-                 show: true,
-                 fontSize: '16',
-                 fontWeight: 'bold',
-                 color: '#334155'
+                 fontSize: '13',
+                 fontWeight: 'bold'
                },
                itemStyle: {
-                 shadowBlur: 10,
-                 shadowOffsetX: 0,
-                 shadowColor: 'rgba(0, 0, 0, 0.3)'
-               }
+                 shadowBlur: 12,
+                 shadowOffsetY: 3,
+                 shadowColor: 'rgba(0, 0, 0, 0.15)',
+                 borderWidth: 3,
+                 borderColor: 'rgba(255,255,255,0.9)'
+               },
+               scale: true,
+               scaleSize: 5
              },
-            labelLine: { show: false },
+            labelLine: {
+              show: true,
+              length: 12,
+              length2: 8,
+              smooth: true,
+              lineStyle: {
+                color: '#cbd5e1',
+                width: 1.8,
+                type: 'solid',
+                cap: 'round',
+                opacity: 0.8
+              }
+            },
             data: changeCounts.map(item => ({
               value: item.count,
               name: item.label,
@@ -1299,6 +1562,7 @@
         const counts = {};
         const labels = {
           0: '数据不足',
+          1: '数据长久未更新，谨慎使用',
           2: '价值陷阱嫌疑',
           3: '严重低估',
           4: '低估',
@@ -1307,13 +1571,13 @@
           7: '严重高估'
         };
         const colors = {
-          0: '#6b7280',
-          2: '#dc2626',
-          3: '#059669',
-          4: '#10b981',
-          5: '#3b82f6',
-          6: '#f59e0b',
-          7: '#dc2626'
+          0: '#94a3b8',   // 数据不足 - 中性灰
+          2: '#ef4444',   // 价值陷阱 - 警告红
+          3: '#10b981',   // 严重低估 - 翠绿
+          4: '#06d6a0',   // 低估 - 浅绿
+          5: '#3b82f6',   // 合理范围 - 蓝色
+          6: '#f59e0b',   // 高估 - 橙色
+          7: '#dc2626'    // 严重高估 - 深红
         };
         
         this.allData.forEach(item => {
@@ -1342,13 +1606,13 @@
       
       getChangeCounts() {
         const ranges = [
-          { key: 'up5+', label: '上涨5%以上', min: 5, max: Infinity, color: '#dc2626' },
-          { key: 'up2-5', label: '上涨2-5%', min: 2, max: 5, color: '#f87171' },
-          { key: 'up0-2', label: '上涨0-2%', min: 0, max: 2, color: '#fca5a5' },
-          { key: 'flat', label: '平盘', min: 0, max: 0, color: '#6b7280' },
-          { key: 'down0-2', label: '下跌0-2%', min: -2, max: 0, color: '#86efac' },
+          { key: 'up5+', label: '上涨5%以上', min: 5, max: Infinity, color: '#e11d48' },
+          { key: 'up2-5', label: '上涨2-5%', min: 2, max: 5, color: '#f43f5e' },
+          { key: 'up0-2', label: '上涨0-2%', min: 0, max: 2, color: '#fb7185' },
+          { key: 'flat', label: '平盘', min: 0, max: 0, color: '#64748b' },
+          { key: 'down0-2', label: '下跌0-2%', min: -2, max: 0, color: '#4ade80' },
           { key: 'down2-5', label: '下跌2-5%', min: -5, max: -2, color: '#22c55e' },
-          { key: 'down5+', label: '下跌5%以上', min: -Infinity, max: -5, color: '#059669' }
+          { key: 'down5+', label: '下跌5%以上', min: -Infinity, max: -5, color: '#16a34a' }
         ];
         
         const counts = {};
@@ -1384,50 +1648,6 @@
       }
       
       
-      updateStats() {
-        const total = this.allData.length;
-        const severeUndervalued = this.allData.filter(item => item.gf_valuation === 3).length;
-        const undervalued = this.allData.filter(item => item.gf_valuation === 4).length;
-        const fair = this.allData.filter(item => item.gf_valuation === 5).length;
-        const overvalued = this.allData.filter(item => item.gf_valuation === 6).length;
-        const severeOvervalued = this.allData.filter(item => item.gf_valuation === 7).length;
-        const trap = this.allData.filter(item => item.gf_valuation === 2).length;
-        const noData = this.allData.filter(item => item.gf_valuation === 0).length;
-        const rising = this.allData.filter(item => item.p_pct_change > 0).length;
-        const falling = this.allData.filter(item => item.p_pct_change < 0).length;
-        
-        // 板块统计
-        const mainBoard = this.allData.filter(item => {
-          const board = item.board || this.detectStockBoard(item.symbol);
-          return board === '主板';
-        }).length;
-        const growthBoard = this.allData.filter(item => {
-          const board = item.board || this.detectStockBoard(item.symbol);
-          return board === '创业板';
-        }).length;
-        const starBoard = this.allData.filter(item => {
-          const board = item.board || this.detectStockBoard(item.symbol);
-          return board === '科创板';
-        }).length;
-        const northBoard = this.allData.filter(item => {
-          const board = item.board || this.detectStockBoard(item.symbol);
-          return board === '北证';
-        }).length;
-        
-        document.getElementById('severeUndervaluedCount').textContent = severeUndervalued.toLocaleString();
-        document.getElementById('undervaluedCount').textContent = undervalued.toLocaleString();
-        document.getElementById('fairCount').textContent = fair.toLocaleString();
-        document.getElementById('overvaluedCount').textContent = overvalued.toLocaleString();
-        document.getElementById('severeOvervaluedCount').textContent = severeOvervalued.toLocaleString();
-        document.getElementById('trapCount').textContent = trap.toLocaleString();
-        document.getElementById('noDataCount').textContent = noData.toLocaleString();
-        document.getElementById('risingCount').textContent = rising.toLocaleString();
-        document.getElementById('fallingCount').textContent = falling.toLocaleString();
-        document.getElementById('mainBoardCount').textContent = mainBoard.toLocaleString();
-        document.getElementById('growthBoardCount').textContent = growthBoard.toLocaleString();
-        document.getElementById('starBoardCount').textContent = starBoard.toLocaleString();
-        document.getElementById('northBoardCount').textContent = northBoard.toLocaleString();
-      }
       
       formatMarketCap(value) {
         if (!value) return 'N/A';
@@ -1468,6 +1688,19 @@
         if (numPE > 1000) return '>1000';
         
         return numPE.toFixed(1);
+      }
+
+      formatDividendYield(yield_value) {
+        if (!yield_value) return 'N/A';
+        
+        // 转换为数字类型
+        const numYield = typeof yield_value === 'string' ? parseFloat(yield_value) : yield_value;
+        
+        // 检查是否为有效数字
+        if (isNaN(numYield) || numYield < 0) return 'N/A';
+        
+        // 股息率通常以百分比显示，保留2位小数
+        return `${numYield.toFixed(2)}%`;
       }
 
       formatPercentage(value) {
@@ -1627,65 +1860,8 @@
          });
        }
        
-       filterByValuation(valuation) {
-         // 更新下拉选择框
-         const valuationFilter = document.getElementById('valuationFilter');
-         
-         // 将数字转换为字符串，因为select的value是字符串
-         const targetValue = valuation.toString();
-         
-         if (valuationFilter.value !== targetValue) {
-           valuationFilter.value = targetValue;
-           this.applyFilters();
-         } else if (valuationFilter.value === targetValue) {
-           // 如果已经选中该选项，则清空筛选
-           valuationFilter.value = '';
-           this.applyFilters();
-         }
-         
-         this.updateStatItemActiveState();
-       }
        
-       filterByBoard(board) {
-         // 更新板块下拉选择框
-         const boardFilter = document.getElementById('boardFilter');
-         
-         if (boardFilter.value !== board) {
-           boardFilter.value = board;
-           this.applyFilters();
-         } else if (boardFilter.value === board) {
-           // 如果已经选中该选项，则清空筛选
-           boardFilter.value = '';
-           this.applyFilters();
-         }
-         
-         this.updateStatItemActiveState();
-       }
        
-       updateStatItemActiveState() {
-         // 清除所有激活状态
-         document.querySelectorAll('.stat-item.clickable').forEach(item => {
-           item.classList.remove('active');
-         });
-         
-         // 根据当前筛选条件添加激活状态
-         const currentValuation = this.valuationFilter.value;
-         if (currentValuation) {
-           const activeItem = document.querySelector(`[data-valuation="${currentValuation}"]`);
-           if (activeItem) {
-             activeItem.classList.add('active');
-           }
-         }
-         
-         // 板块筛选激活状态
-         const currentBoard = this.boardFilter.value;
-         if (currentBoard) {
-           const activeBoardItem = document.querySelector(`[data-board="${currentBoard}"]`);
-           if (activeBoardItem) {
-             activeBoardItem.classList.add('active');
-           }
-         }
-       }
        
         viewStockDetail(row) {
           try {
