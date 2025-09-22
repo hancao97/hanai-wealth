@@ -31,7 +31,7 @@
      }
     
     .container {
-      max-width: 1200px;
+      max-width: 1600px;
       margin: 0 auto;
       padding: 20px;
     }
@@ -252,16 +252,17 @@
       white-space: nowrap;
     }
     
-      .table th:nth-child(1), .table td:nth-child(1) { width: 100px; } /* 公司信息 */
-      .table th:nth-child(2), .table td:nth-child(2) { width: 150px; } /* 行业 */
-      .table th:nth-child(3), .table td:nth-child(3) { width: 70px; }  /* 板块 */
-      .table th:nth-child(4), .table td:nth-child(4) { width: 80px; }  /* 价格 */
-      .table th:nth-child(5), .table td:nth-child(5) { width: 80px; }  /* 涨跌幅 */
-      .table th:nth-child(6), .table td:nth-child(6) { width: 70px; }  /* 市盈率 */
-      .table th:nth-child(7), .table td:nth-child(7) { width: 70px; }  /* 股息率 */
-      .table th:nth-child(8), .table td:nth-child(8) { width: 80px; }  /* 价值评分 */
-      .table th:nth-child(9), .table td:nth-child(9) { width: 100px; } /* 价值评估 */
-      .table th:nth-child(10), .table td:nth-child(10) { width: 100px; } /* 市值 */
+      .table th:nth-child(1), .table td:nth-child(1) { width: 160px; } /* 公司 */
+      .table th:nth-child(2), .table td:nth-child(2) { width: 180px; } /* 行业 */
+      .table th:nth-child(3), .table td:nth-child(3) { width: 80px; }  /* 板块 */
+      .table th:nth-child(4), .table td:nth-child(4) { width: 90px; }  /* 价格 */
+      .table th:nth-child(5), .table td:nth-child(5) { width: 90px; }  /* 涨跌幅 */
+      .table th:nth-child(6), .table td:nth-child(6) { width: 80px; }  /* 市盈率 */
+      .table th:nth-child(7), .table td:nth-child(7) { width: 80px; }  /* 股息率 */
+      .table th:nth-child(8), .table td:nth-child(8) { width: 160px; }  /* 合理估值 */
+      .table th:nth-child(9), .table td:nth-child(9) { width: 90px; }  /* 价值评分 */
+      .table th:nth-child(10), .table td:nth-child(10) { width: 120px; } /* 价值评估 */
+      .table th:nth-child(11), .table td:nth-child(11) { width: 120px; } /* 市值 */
     
      .table th {
        background: #f8fafc;
@@ -332,6 +333,39 @@
     .board-star { background: #f59e0b; color: white; } /* 科创板 - 橙色 */
      .board-north { background: #8b5cf6; color: white; } /* 北证 - 紫色 */
      
+     /* GF价值样式 */
+     .gf-value {
+       font-weight: 600;
+       font-size: 13px;
+       padding: 4px 8px;
+       border-radius: 6px;
+       display: inline-block;
+       min-width: 60px;
+       text-align: center;
+       border: 1px solid transparent;
+     }
+     
+     .gf-value.undervalued {
+       background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+       color: #059669;
+       border-color: #10b981;
+       box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+     }
+     
+     .gf-value.overvalued {
+       background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+       color: #dc2626;
+       border-color: #ef4444;
+       box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+     }
+     
+     .gf-value.no-data {
+       background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+       color: #64748b;
+       border-color: #94a3b8;
+       font-style: italic;
+     }
+     
      .company-info {
        display: flex;
        flex-direction: column;
@@ -351,44 +385,151 @@
        font-weight: 500;
      }
      
+     /* Dashboard 样式 */
+     .dashboard {
+       margin: 24px 0;
+     }
+     
+     .dashboard-row {
+       display: grid;
+       grid-template-columns: 1fr 1fr;
+       gap: 24px;
+       margin-bottom: 24px;
+     }
+     
+     .dashboard-card {
+       background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+       border: 1px solid rgba(148, 163, 184, 0.2);
+       border-radius: 20px;
+       padding: 32px;
+       box-shadow: 0 20px 40px rgba(148, 163, 184, 0.15);
+       position: relative;
+       overflow: hidden;
+     }
+     
+     .dashboard-card::before {
+       content: '';
+       position: absolute;
+       top: 0;
+       left: 0;
+       right: 0;
+       bottom: 0;
+       background: radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%), 
+                   radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
+       pointer-events: none;
+     }
+     
+     .dashboard-card h3 {
+       margin: 0 0 24px 0;
+       font-size: 20px;
+       font-weight: 800;
+       text-align: center;
+       position: relative;
+       z-index: 1;
+       background: linear-gradient(135deg, #1e293b 0%, #3b82f6 50%, #10b981 100%);
+       -webkit-background-clip: text;
+       -webkit-text-fill-color: transparent;
+       background-clip: text;
+       text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+     }
+     
+     .chart-container {
+       position: relative;
+       z-index: 1;
+       background: rgba(255, 255, 255, 0.8);
+       border-radius: 16px;
+       padding: 20px;
+       backdrop-filter: blur(8px);
+       border: 1px solid rgba(255, 255, 255, 0.6);
+       box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+     }
+     
      /* 股息率统计样式 */
      .dividend-stats-container {
-       background: white;
-       border: 1px solid #e2e8f0;
-       border-radius: 16px;
-       padding: 24px;
+       background: linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%);
+       border: 1px solid rgba(148, 163, 184, 0.2);
+       border-radius: 20px;
+       padding: 32px;
        margin: 24px 0;
-       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+       box-shadow: 0 20px 40px rgba(148, 163, 184, 0.15);
+       position: relative;
+       overflow: hidden;
+     }
+     
+     .dividend-stats-container::before {
+       content: '';
+       position: absolute;
+       top: -50%;
+       left: -50%;
+       width: 200%;
+       height: 200%;
+       background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(59, 130, 246, 0.03) 60deg, transparent 120deg, rgba(16, 185, 129, 0.03) 180deg, transparent 240deg, rgba(239, 68, 68, 0.03) 300deg, transparent 360deg);
+       animation: rotate 30s linear infinite;
+       pointer-events: none;
+     }
+     
+     @keyframes rotate {
+       0% { transform: rotate(0deg); }
+       100% { transform: rotate(360deg); }
      }
      
      .dividend-stats-title {
-       margin: 0 0 20px 0;
-       font-size: 18px;
-       font-weight: 700;
-       color: #1e293b;
+       margin: 0 0 24px 0;
+       font-size: 22px;
+       font-weight: 800;
+       background: linear-gradient(135deg, #1e293b 0%, #3b82f6 50%, #10b981 100%);
+       -webkit-background-clip: text;
+       -webkit-text-fill-color: transparent;
+       background-clip: text;
        text-align: center;
-       padding-bottom: 8px;
-       border-bottom: 2px solid #e2e8f0;
+       padding-bottom: 12px;
+       border-bottom: 3px solid transparent;
+       border-image: linear-gradient(90deg, transparent 0%, #3b82f6 50%, transparent 100%) 1;
+       position: relative;
+       z-index: 1;
+       text-shadow: 0 2px 4px rgba(0,0,0,0.1);
      }
      
      .dividend-stats-grid {
        display: grid;
        grid-template-columns: repeat(6, 1fr);
-       gap: 12px;
+       gap: 16px;
+       position: relative;
+       z-index: 1;
      }
      
      .dividend-stat-item {
-       background: white;
-       border: 2px solid #e2e8f0;
-       border-radius: 12px;
-       padding: 12px 8px;
+       background: rgba(255, 255, 255, 0.95);
+       backdrop-filter: blur(8px);
+       border: 2px solid rgba(255, 255, 255, 0.3);
+       border-radius: 16px;
+       padding: 16px 12px;
        text-align: center;
-       transition: transform 0.2s ease, box-shadow 0.2s ease;
+       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+       position: relative;
+       overflow: hidden;
+       box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+     }
+     
+     .dividend-stat-item::before {
+       content: '';
+       position: absolute;
+       top: 0;
+       left: -100%;
+       width: 100%;
+       height: 100%;
+       background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+       transition: left 0.6s ease;
+     }
+     
+     .dividend-stat-item:hover::before {
+       left: 100%;
      }
      
      .dividend-stat-item:hover {
-       transform: translateY(-2px);
-       box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+       transform: translateY(-6px) scale(1.03);
+       box-shadow: 0 16px 32px rgba(0,0,0,0.15);
+       border-color: rgba(255, 255, 255, 0.6);
      }
      
      .dividend-stat-item.clickable {
@@ -396,8 +537,8 @@
      }
      
      .dividend-stat-item.clickable:hover {
-       transform: translateY(-3px);
-       box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+       transform: translateY(-8px) scale(1.05);
+       box-shadow: 0 20px 40px rgba(0,0,0,0.2);
      }
      
      .dividend-stat-item.active {
@@ -426,24 +567,44 @@
      }
      
      .dividend-stat-value {
-       font-size: 20px;
-       font-weight: 700;
-       margin-bottom: 6px;
+       font-size: 24px;
+       font-weight: 800;
+       margin-bottom: 8px;
        line-height: 1.1;
+       background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+       -webkit-background-clip: text;
+       -webkit-text-fill-color: transparent;
+       background-clip: text;
+       animation: numberPulse 3s ease-in-out infinite;
+       position: relative;
+       z-index: 1;
+     }
+     
+     @keyframes numberPulse {
+       0%, 100% { transform: scale(1); opacity: 1; }
+       50% { transform: scale(1.05); opacity: 0.9; }
      }
      
      .dividend-stat-label {
-       font-size: 11px;
-       font-weight: 600;
-       margin-bottom: 3px;
+       font-size: 12px;
+       font-weight: 700;
+       margin-bottom: 4px;
        color: #334155;
        line-height: 1.2;
+       text-transform: uppercase;
+       letter-spacing: 0.5px;
+       position: relative;
+       z-index: 1;
      }
      
      .dividend-stat-desc {
-       font-size: 9px;
+       font-size: 10px;
        color: #64748b;
-       line-height: 1.2;
+       line-height: 1.3;
+       font-weight: 500;
+       position: relative;
+       z-index: 1;
+       opacity: 0.8;
      }
      
      /* 不同股息率水平的颜色 */
@@ -464,6 +625,163 @@
      
      .dividend-no-data { border-color: #6b7280; background: #f9fafb; }
      .dividend-no-data .dividend-stat-value { color: #6b7280; }
+     
+     /* 市场概览统计样式 */
+     .market-overview-container {
+       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+       border: none;
+       border-radius: 20px;
+       padding: 32px;
+       margin: 24px 0;
+       box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+       position: relative;
+       overflow: hidden;
+     }
+     
+     .market-overview-container::before {
+       content: '';
+       position: absolute;
+       top: 0;
+       left: 0;
+       right: 0;
+       bottom: 0;
+       background: linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%, transparent);
+       background-size: 30px 30px;
+       pointer-events: none;
+     }
+     
+     .market-overview-title {
+       margin: 0 0 24px 0;
+       font-size: 24px;
+       font-weight: 800;
+       color: white;
+       text-align: center;
+       text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+       position: relative;
+       z-index: 1;
+     }
+     
+     .market-overview-grid {
+       display: grid;
+       grid-template-columns: repeat(2, 1fr);
+       gap: 24px;
+       position: relative;
+       z-index: 1;
+     }
+     
+     .market-stat-card {
+       background: rgba(255, 255, 255, 0.95);
+       backdrop-filter: blur(10px);
+       border: 1px solid rgba(255, 255, 255, 0.2);
+       border-radius: 16px;
+       padding: 24px;
+       display: flex;
+       align-items: center;
+       gap: 20px;
+       transition: all 0.3s ease;
+       position: relative;
+       overflow: hidden;
+     }
+     
+     .market-stat-card::before {
+       content: '';
+       position: absolute;
+       top: 0;
+       left: -100%;
+       width: 100%;
+       height: 100%;
+       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+       transition: left 0.6s ease;
+     }
+     
+     .market-stat-card:hover::before {
+       left: 100%;
+     }
+     
+     .market-stat-card:hover {
+       transform: translateY(-8px) scale(1.02);
+       box-shadow: 0 16px 32px rgba(0,0,0,0.2);
+     }
+     
+     .market-stat-icon {
+       width: 64px;
+       height: 64px;
+       border-radius: 16px;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       flex-shrink: 0;
+       position: relative;
+       z-index: 1;
+     }
+     
+     .price-card .market-stat-icon {
+       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+       color: white;
+       box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+     }
+     
+     .pe-card .market-stat-icon {
+       background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+       color: white;
+       box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+     }
+     
+     .market-stat-content {
+       flex: 1;
+       position: relative;
+       z-index: 1;
+     }
+     
+     .market-stat-value {
+       font-size: 28px;
+       font-weight: 800;
+       margin-bottom: 4px;
+       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+       -webkit-background-clip: text;
+       -webkit-text-fill-color: transparent;
+       background-clip: text;
+       line-height: 1.1;
+       animation: pulse 2s ease-in-out infinite;
+     }
+     
+     @keyframes pulse {
+       0%, 100% { opacity: 1; }
+       50% { opacity: 0.8; }
+     }
+     
+     .market-stat-label {
+       font-size: 14px;
+       font-weight: 600;
+       color: #64748b;
+       margin-bottom: 8px;
+       text-transform: uppercase;
+       letter-spacing: 0.5px;
+     }
+     
+     .market-stat-trend {
+       display: flex;
+       align-items: center;
+       gap: 6px;
+       font-size: 12px;
+       color: #6b7280;
+       font-weight: 500;
+     }
+     
+     .trend-icon {
+       font-size: 14px;
+       animation: bounce 2s ease-in-out infinite;
+     }
+     
+     @keyframes bounce {
+       0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+       40% { transform: translateY(-4px); }
+       60% { transform: translateY(-2px); }
+     }
+     
+     .trend-text {
+       opacity: 0.8;
+     }
       
        .no-results {
        text-align: center;
@@ -594,6 +912,11 @@
      }
     
     @media (max-width: 768px) {
+      .container {
+        max-width: 100%;
+        padding: 16px;
+      }
+      
       .header-content {
         flex-direction: column;
         align-items: stretch;
@@ -620,6 +943,20 @@
       
       .dashboard-row {
         grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      
+      .dashboard-card {
+        padding: 24px;
+      }
+      
+      .dashboard-card h3 {
+        font-size: 18px;
+        margin-bottom: 16px;
+      }
+      
+      .chart-container {
+        padding: 12px;
       }
       
       .filter-row {
@@ -652,6 +989,11 @@
         margin: 0 8px;
       }
       
+      .table-container {
+        overflow-x: auto;
+        border-radius: 12px;
+      }
+      
       .dividend-stats-grid {
         grid-template-columns: repeat(3, 1fr);
         gap: 8px;
@@ -680,6 +1022,35 @@
       .dividend-stats-container {
         padding: 16px;
         margin: 16px 0;
+      }
+      
+      .market-overview-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      
+      .market-overview-container {
+        padding: 24px;
+        margin: 16px 0;
+      }
+      
+      .market-overview-title {
+        font-size: 20px;
+        margin-bottom: 16px;
+      }
+      
+      .market-stat-card {
+        padding: 20px;
+        gap: 16px;
+      }
+      
+      .market-stat-icon {
+        width: 56px;
+        height: 56px;
+      }
+      
+      .market-stat-value {
+        font-size: 24px;
       }
     }
     
@@ -722,6 +1093,32 @@
       .dividend-stats-container {
         padding: 12px;
         margin: 12px 0;
+      }
+      
+      .market-overview-container {
+        padding: 16px;
+        margin: 12px 0;
+      }
+      
+      .market-overview-title {
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+      
+      .market-stat-card {
+        padding: 16px;
+        gap: 12px;
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .market-stat-icon {
+        width: 48px;
+        height: 48px;
+      }
+      
+      .market-stat-value {
+        font-size: 20px;
       }
     }
   </style>
@@ -801,6 +1198,47 @@
         </div>
       </div>
       
+      <!-- 市场概览统计 -->
+      <div class="market-overview-container">
+        <h3 class="market-overview-title">市场概览</h3>
+        <div class="market-overview-grid">
+          <div class="market-stat-card price-card">
+            <div class="market-stat-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7h20l-10-5z"/>
+                <path d="M2 17h20l-10 5-10-5z"/>
+                <path d="M7 12h10"/>
+              </svg>
+            </div>
+            <div class="market-stat-content">
+              <div class="market-stat-value" id="avgPriceValue">¥0.00</div>
+              <div class="market-stat-label">平均股价</div>
+              <div class="market-stat-trend" id="avgPriceTrend">
+                <span class="trend-icon">📈</span>
+                <span class="trend-text">市场均价</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="market-stat-card pe-card">
+            <div class="market-stat-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+            </div>
+            <div class="market-stat-content">
+              <div class="market-stat-value" id="avgPeValue">0.00</div>
+              <div class="market-stat-label">平均市盈率（排除1000以上异常值和亏损企业）</div>
+              <div class="market-stat-trend" id="avgPeTrend">
+                <span class="trend-icon">⚡</span>
+                <span class="trend-text">估值水平</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
     </div>
     
     <div class="filters">
@@ -876,16 +1314,17 @@
       <table class="table">
         <thead>
           <tr>
-             <th>公司信息</th>
-             <th>行业</th>
-             <th>板块</th>
-             <th>价格</th>
-             <th>涨跌幅</th>
-             <th>市盈率</th>
-             <th>股息率</th>
-             <th>价值评分</th>
-             <th>价值评估</th>
-             <th>市值</th>
+            <th>公司</th>
+            <th>行业</th>
+            <th>板块</th>
+            <th>价格</th>
+            <th>涨跌幅</th>
+            <th>市盈率</th>
+            <th>股息率</th>
+            <th>合理估值</th>
+            <th>价值评分</th>
+            <th>价值评估</th>
+            <th>市值</th>
           </tr>
         </thead>
         <tbody id="dataTable">
@@ -1076,20 +1515,171 @@
           }
         });
         
-        // 更新DOM - 添加安全检查
-        const updateElement = (id, value) => {
+        // 更新DOM - 使用动画效果
+        const updateElementWithAnimation = (id, value) => {
           const element = document.getElementById(id);
           if (element) {
-            element.textContent = value.toLocaleString();
+            this.animateValue(id, 0, value, 1500, (val) => Math.round(val).toLocaleString());
           }
         };
         
-        updateElement('lowDividendCount', lowDividend);
-        updateElement('mediumDividendCount', mediumDividend);
-        updateElement('highDividendCount', highDividend);
-        updateElement('superHighDividendCount', superHighDividend);
-        updateElement('abnormalDividendCount', abnormalDividend);
-        updateElement('noDividendDataCount', noDividendData);
+        updateElementWithAnimation('lowDividendCount', lowDividend);
+        updateElementWithAnimation('mediumDividendCount', mediumDividend);
+        updateElementWithAnimation('highDividendCount', highDividend);
+        updateElementWithAnimation('superHighDividendCount', superHighDividend);
+        updateElementWithAnimation('abnormalDividendCount', abnormalDividend);
+        updateElementWithAnimation('noDividendDataCount', noDividendData);
+      }
+      
+      // 更新市场概览统计
+      updateMarketOverview() {
+        if (!this.allData || this.allData.length === 0) {
+          return;
+        }
+        
+        let totalPrice = 0;
+        let priceCount = 0;
+        let totalPE = 0;
+        let peCount = 0;
+        
+        this.allData.forEach(item => {
+          // 计算平均股价
+          const price = parseFloat(item.price?.replace('¥', ''));
+          if (!isNaN(price) && price > 0) {
+            totalPrice += price;
+            priceCount++;
+          }
+          
+          // 计算平均市盈率
+          const pe = parseFloat(item.pettm);
+          if (!isNaN(pe) && pe < 1000) { // 排除异常值
+            totalPE += pe;
+            peCount++;
+          }
+        });
+        
+        // 计算平均值
+        const avgPrice = priceCount > 0 ? totalPrice / priceCount : 0;
+        const avgPE = peCount > 0 ? totalPE / peCount : 0;
+        
+        // 使用动画更新数值
+        this.animateValue('avgPriceValue', 0, avgPrice, 2000, (value) => `¥${value.toFixed(2)}`);
+        this.animateValue('avgPeValue', 0, avgPE, 2000, (value) => value.toFixed(2));
+        
+        // 更新趋势信息
+        this.updateTrendInfo(avgPrice, avgPE);
+      }
+      
+      // 数值动画效果
+      animateValue(elementId, start, end, duration, formatter) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        const startTime = performance.now();
+        const animate = (currentTime) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          
+          // 使用easeOutQuart缓动函数
+          const easeProgress = 1 - Math.pow(1 - progress, 4);
+          const currentValue = start + (end - start) * easeProgress;
+          
+          element.textContent = formatter(currentValue);
+          
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        };
+        
+        requestAnimationFrame(animate);
+      }
+      
+      // 更新趋势信息
+      updateTrendInfo(avgPrice, avgPE) {
+        const priceLevel = this.getPriceLevel(avgPrice);
+        const peLevel = this.getPELevel(avgPE);
+        
+        const priceTrend = document.getElementById('avgPriceTrend');
+        const peTrend = document.getElementById('avgPeTrend');
+        
+        if (priceTrend) {
+          priceTrend.innerHTML = `
+            <span class="trend-icon">${priceLevel.icon}</span>
+            <span class="trend-text">${priceLevel.text}</span>
+          `;
+        }
+        
+        if (peTrend) {
+          peTrend.innerHTML = `
+            <span class="trend-icon">${peLevel.icon}</span>
+            <span class="trend-text">${peLevel.text}</span>
+          `;
+        }
+      }
+      
+      // 获取股价水平描述
+      getPriceLevel(price) {
+        if (price < 10) return { icon: '📉', text: '低价股票' };
+        if (price < 30) return { icon: '📊', text: '中等价位' };
+        if (price < 100) return { icon: '📈', text: '较高价位' };
+        return { icon: '💎', text: '高价股票' };
+      }
+      
+      // 获取市盈率水平描述
+      getPELevel(pe) {
+        if (pe < 15) return { icon: '💰', text: '低估值' };
+        if (pe < 25) return { icon: '⚖️', text: '合理估值' };
+        if (pe < 50) return { icon: '⚡', text: '较高估值' };
+        return { icon: '🔥', text: '高估值' };
+      }
+      
+      // 添加dashboard加载动画
+      addDashboardLoadingAnimation() {
+        // 为所有统计容器添加入场动画
+        const containers = [
+          document.querySelector('.dashboard'),
+          document.querySelector('.dividend-stats-container'),
+          document.querySelector('.market-overview-container')
+        ];
+        
+        containers.forEach((container, index) => {
+          if (container) {
+            container.style.opacity = '0';
+            container.style.transform = 'translateY(30px)';
+            
+            setTimeout(() => {
+              container.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+              container.style.opacity = '1';
+              container.style.transform = 'translateY(0)';
+            }, index * 200);
+          }
+        });
+        
+        // 为统计卡片添加依次入场动画
+        const dividendCards = document.querySelectorAll('.dividend-stat-item');
+        dividendCards.forEach((card, index) => {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(20px) scale(0.9)';
+          
+          setTimeout(() => {
+            card.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0) scale(1)';
+          }, 500 + index * 100);
+        });
+        
+        // 为市场概览卡片添加动画
+        const marketCards = document.querySelectorAll('.market-stat-card');
+        marketCards.forEach((card, index) => {
+          card.style.opacity = '0';
+          card.style.transform = 'translateX(-30px) rotateY(-15deg)';
+          
+          setTimeout(() => {
+            card.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+            card.style.opacity = '1';
+            card.style.transform = 'translateX(0) rotateY(0deg)';
+          }, 800 + index * 300);
+        });
       }
       
       // 获取股息率分类
@@ -1279,11 +1869,11 @@
            <tr class="table-row clickable" data-stockid="${item.stockid}" onclick="stockFilter.viewStockDetail(this)">
              <td>
                <div class="company-info">
-                 <div class="company-name" title="${this.escapeHtml(item.company || 'N/A')}">${this.escapeHtml(this.truncateText(item.company || 'N/A', 15))}</div>
+                 <div class="company-name" title="${this.escapeHtml(item.company || 'N/A')}">${this.escapeHtml(this.truncateText(item.company || 'N/A', 20))}</div>
                  <div class="company-symbol">${this.escapeHtml(item.symbol || 'N/A')}</div>
                </div>
              </td>
-             <td title="${this.escapeHtml(item.industry || 'N/A')}">${this.escapeHtml(this.truncateText(item.industry || 'N/A', 12))}</td>
+             <td title="${this.escapeHtml(item.industry || 'N/A')}">${this.escapeHtml(this.truncateText(item.industry || 'N/A', 16))}</td>
              <td>
                <span class="board-tag ${this.getBoardClass(board)}">
                  ${board}
@@ -1295,6 +1885,7 @@
              </td>
              <td class="pe-ratio">${this.formatPE(item.pettm)}</td>
              <td class="dividend-yield">${this.formatDividendYield(item.yield)}</td>
+             <td class="gf-value-cell">${this.formatGFValue(item.gf_value, item.price)}</td>
              <td>
                <span class="gf-score" style="font-weight: 600; color: ${this.getScoreColor(item.gf_score)};">
                  ${item.gf_score || 'N/A'}
@@ -1346,9 +1937,12 @@
         this.dashboard.style.display = 'block';
         this.updateValuationChart();
         this.updateChangeChart();
-        // 延迟执行股息率统计更新，确保DOM已渲染
+        // 延迟执行统计更新，确保DOM已渲染
         setTimeout(() => {
+          // 添加加载完成的动画效果
+          this.addDashboardLoadingAnimation();
           this.updateDividendStats();
+          this.updateMarketOverview();
         }, 100);
       }
       
@@ -1424,11 +2018,11 @@
               length2: 8,
               smooth: true,
               lineStyle: {
-                color: '#cbd5e1',
-                width: 1.8,
+                color: '#94a3b8',
+                width: 2,
                 type: 'solid',
                 cap: 'round',
-                opacity: 0.8
+                opacity: 0.9
               }
             },
             data: valuationCounts.map(item => ({
@@ -1527,11 +2121,11 @@
               length2: 8,
               smooth: true,
               lineStyle: {
-                color: '#cbd5e1',
-                width: 1.8,
+                color: '#94a3b8',
+                width: 2,
                 type: 'solid',
                 cap: 'round',
-                opacity: 0.8
+                opacity: 0.9
               }
             },
             data: changeCounts.map(item => ({
@@ -1662,6 +2256,40 @@
         return value.toFixed(2);
       }
 
+      formatGFValue(gfValue, currentPrice) {
+        // 检查GF价值是否有效
+        if (!gfValue || gfValue === 0 || isNaN(parseFloat(gfValue))) {
+          return '<span class="gf-value no-data">无数据</span>';
+        }
+        
+        const gfVal = parseFloat(gfValue);
+        const currPrice = parseFloat(currentPrice?.toString().replace('¥', '')) || 0;
+        
+        // 根据GF价值与当前价格的关系确定样式
+        let className = 'no-data';
+        let displayText = `¥${gfVal.toFixed(2)}`;
+        
+        if (currPrice > 0) {
+          if (gfVal > currPrice) {
+            // GF价值高于当前价格，股票被低估
+            className = 'undervalued';
+            const upside = ((gfVal - currPrice) / currPrice * 100).toFixed(1);
+            displayText = `¥${gfVal.toFixed(2)} (+${upside}%)`;
+          } else if (gfVal < currPrice) {
+            // GF价值低于当前价格，股票被高估
+            className = 'overvalued';
+            const downside = ((currPrice - gfVal) / currPrice * 100).toFixed(1);
+            displayText = `¥${gfVal.toFixed(2)} (-${downside}%)`;
+          } else {
+            // 价格相等，合理估值
+            className = 'undervalued'; // 使用绿色表示合理
+            displayText = `¥${gfVal.toFixed(2)} (合理)`;
+          }
+        }
+        
+        return `<span class="gf-value ${className}">${displayText}</span>`;
+      }
+
       formatPrice(price) {
         if (!price) return 'N/A';
         if (typeof price === 'string') {
@@ -1684,8 +2312,8 @@
         const numPE = typeof pe === 'string' ? parseFloat(pe) : pe;
         
         // 检查是否为有效数字
-        if (isNaN(numPE) || numPE <= 0) return 'N/A';
-        if (numPE > 1000) return '>1000';
+        if (!isNaN(numPE) && numPE > 1000) return '>1000';
+        if(isNaN(numPE)) return pe;
         
         return numPE.toFixed(1);
       }
