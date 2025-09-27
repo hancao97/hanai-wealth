@@ -68,17 +68,19 @@ function saveData(data) {
   });
   
   const fileName = getFileName();
-  const outPath = path.join(__dirname, '../views/assets', fileName);
-  fs.writeFileSync(outPath, JSON.stringify(processedData, null, 2), 'utf-8');
-  console.log(`Saved ${processedData.length} records to ${outPath}`);
+  
+  // 只保存到public目录（Vue3版本）
+  const publicPath = path.join(__dirname, '../../public/assets', fileName);
+  fs.writeFileSync(publicPath, JSON.stringify(processedData, null, 2), 'utf-8');
+  console.log(`Saved ${processedData.length} records to ${publicPath}`);
 }
 
 function upateDates() {
-  const assetsDir = path.join(__dirname, '../views/assets');
-  const datesConfigPath = path.join(__dirname, '../views/dates.json');
+  const assetsDir = path.join(__dirname, '../../public/assets');
+  const publicDatesConfigPath = path.join(__dirname, '../../public/dates.json');
   
   try {
-    // 读取assets目录下的所有JSON文件
+    // 读取public/assets目录下的所有JSON文件
     const files = fs.readdirSync(assetsDir)
       .filter(file => file.endsWith('.json') && /^\d{4}-\d{2}-\d{2}\.json$/.test(file))
       .sort(); // 按日期排序
@@ -87,14 +89,14 @@ function upateDates() {
     
     if (files.length === 0) {
       console.log('No data files found, creating empty dates.json');
-      fs.writeFileSync(datesConfigPath, JSON.stringify([], null, 2), 'utf-8');
+      fs.writeFileSync(publicDatesConfigPath, JSON.stringify([], null, 2), 'utf-8');
       return;
     }
     
     const validDates = files.map(file => file.replace('.json', ''));
     
-    // 将有效日期写入配置文件
-    fs.writeFileSync(datesConfigPath, JSON.stringify(validDates, null, 2), 'utf-8');
+    // 将有效日期写入配置文件（只写入public目录）
+    fs.writeFileSync(publicDatesConfigPath, JSON.stringify(validDates, null, 2), 'utf-8');
     console.log(`更新dates.json，有效日期数: ${validDates.length}`);
     
   } catch (error) {
