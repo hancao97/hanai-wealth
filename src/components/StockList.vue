@@ -27,7 +27,7 @@
     </div>
     
     <!-- 仪表板 -->
-    <div class="dashboard" v-show="!loading && allData.length > 0">
+    <div class="dashboard">
       <div class="dashboard-row">
         <!-- 价值评估分布 -->
         <div class="dashboard-card">
