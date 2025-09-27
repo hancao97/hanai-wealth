@@ -1,4 +1,4 @@
-const { fiedConfig } = require('../configs/gurufocus');
+import { fiedConfig } from '../configs/gurufocus.js';
 
 function detectStockBoard(symbol) {
   if (!symbol || typeof symbol !== 'string') {
@@ -49,6 +49,6 @@ function formatAsset(asset) {
   }
 }
 
-module.exports = {
+export {
   formatAsset
 };

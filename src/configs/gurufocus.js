@@ -117,7 +117,7 @@ const gf_valuation_map = {
   0: '数据不足',
 } 
 
-module.exports = {
+export {
   guruFocusFetchApiBasicParams,
   fiedConfig,
   gf_valuation_map

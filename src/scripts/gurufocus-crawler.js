@@ -1,8 +1,13 @@
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const { guruFocusFetchApiBasicParams } = require('../configs/gurufocus');
-const { formatAsset } = require('../utils/gurufocus');
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios';
+import { fileURLToPath } from 'url';
+import { guruFocusFetchApiBasicParams } from '../configs/gurufocus.js';
+import { formatAsset } from '../utils/gurufocus.js';
+
+// 获取当前文件的目录路径（ES模块中没有__dirname）
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function fetchGuruFocusScreener() {
   const res = [];
