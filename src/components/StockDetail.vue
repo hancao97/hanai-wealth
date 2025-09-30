@@ -447,7 +447,7 @@ const loadStockData = async () => {
       throw new Error('缺少必要参数：stockid或date')
     }
 
-    const response = await axios.get(`/assets/${date}.json`)
+    const response = await axios.get(`./assets/${date}.json`)
     const allData = response.data
     
     // 保存全部股票数据用于计算平均值

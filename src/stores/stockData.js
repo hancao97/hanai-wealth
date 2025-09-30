@@ -235,7 +235,7 @@ export const useStockDataStore = defineStore('stockData', () => {
       loading.value = true
       error.value = null
       
-      const response = await axios.get('/dates.json')
+      const response = await axios.get('./dates.json')
       availableDates.value = response.data.sort().reverse() // 最新日期在前
       
       if (availableDates.value.length > 0) {
@@ -274,7 +274,7 @@ export const useStockDataStore = defineStore('stockData', () => {
       error.value = null
       currentDate.value = selectedDate
       
-      const response = await axios.get(`/assets/${selectedDate}.json`)
+      const response = await axios.get(`./assets/${selectedDate}.json`)
       allData.value = response.data
       
       applyFilters()
