@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "serve": "npm run dev",
     "fetch": "node ./src/scripts/gurufocus-crawler.js",
+    "formate": "node ./src/scripts/formate.js",
+    "remove-sma": "node ./src/scripts/remove-sma-keys.js",
     "fetch:build": "npm run fetch && npm run build",
     "serve:today": "npm run fetch && npm run dev"
   },

@@ -18,9 +18,6 @@ const guruFocusFetchApiBasicParams = {
     "price10ylow",
     "price10yhigh",
     "total_free_cash_flow",
-    "sma_20",
-    "sma_50",
-    "sma_200",
     "yield",
     "grossmargin",
     "net_margain",
@@ -80,10 +77,6 @@ const fiedConfig = {
   total_netincome_growth_10y: '近10年净利润增长率',
   pchange_10y: '近10年年化回报率',
   total_free_cash_flow: '自由现金流', // 单位：百万，需要换算
-
-  sma_20: '20日移动平均线',
-  sma_50: '50日移动平均线',
-  sma_200: '200日移动平均线',
 
   yield: '股息率',
   grossmargin: '毛利率',

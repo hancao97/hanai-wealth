@@ -201,18 +201,6 @@
                 <td>10年年化回报</td>
                 <td>{{ stockData.pchange_10y ? `${stockData.pchange_10y.toFixed(2)}%` : 'N/A' }}</td>
               </tr>
-              <tr>
-                <td>20日均线</td>
-                <td>{{ stockData.sma_20 ? `¥${stockData.sma_20.toFixed(2)}` : 'N/A' }}</td>
-              </tr>
-              <tr>
-                <td>50日均线</td>
-                <td>{{ stockData.sma_50 ? `¥${stockData.sma_50.toFixed(2)}` : 'N/A' }}</td>
-              </tr>
-              <tr>
-                <td>200日均线</td>
-                <td>{{ stockData.sma_200 ? `¥${stockData.sma_200.toFixed(2)}` : 'N/A' }}</td>
-              </tr>
             </tbody>
           </table>
         </div>
