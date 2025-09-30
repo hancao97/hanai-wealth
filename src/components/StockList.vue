@@ -694,7 +694,6 @@ const formatPercentage = (value) => {
 const formatPE = (pe) => {
   if (!pe) return 'N/A'
   const numPE = typeof pe === 'string' ? parseFloat(pe) : pe
-  if (!isNaN(numPE) && numPE > 1000) return '>1000'
   if (isNaN(numPE)) return pe
   return numPE.toFixed(1)
 }

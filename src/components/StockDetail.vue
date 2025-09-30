@@ -58,7 +58,7 @@
         <div class="charts-grid">
           <!-- PE估值图表 -->
           <div class="pe-chart-container-solo">
-            <h4 class="pe-chart-title">市盈率估值区间</h4>
+            <h4 class="pe-chart-title">市盈率历史区间</h4>
             <div class="pe-chart-wrapper">
               <div v-if="isCurrentLoss" class="loss-indicator">
                 <div class="loss-icon">📉</div>
@@ -149,10 +149,6 @@
                 <td>GF合理估值</td>
                 <td>{{ stockData.gf_value ? `¥${stockData.gf_value.toFixed(2)}` : 'N/A' }}</td>
               </tr>
-              <tr>
-                <td>市净率</td>
-                <td>{{ stockData.pb ? stockData.pb.toFixed(2) : 'N/A' }}</td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -165,18 +161,6 @@
           </h3>
           <table class="data-table">
             <tbody>
-              <tr>
-                <td>股息率</td>
-                <td>{{ stockData.yield ? `${stockData.yield.toFixed(2)}%` : 'N/A' }}</td>
-              </tr>
-              <tr>
-                <td>毛利率</td>
-                <td>{{ stockData.grossmargin ? `${stockData.grossmargin.toFixed(2)}%` : 'N/A' }}</td>
-              </tr>
-              <tr>
-                <td>净利率</td>
-                <td>{{ stockData.net_margain ? `${stockData.net_margain.toFixed(2)}%` : 'N/A' }}</td>
-              </tr>
               <tr>
                 <td>自由现金流</td>
                 <td>{{ formatCashFlow(stockData.total_free_cash_flow) }}</td>
@@ -205,6 +189,13 @@
           </table>
         </div>
       </div>
+
+      <!-- 财务指标分析组件 -->
+      <FinancialMetrics 
+        :stock-data="stockData"
+        :all-stocks-data="allStocksData"
+        :current-date="props.date || route.query.date"
+      />
       
       <!-- 五维评级体系 -->
       <div class="ratings-section">
@@ -284,6 +275,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import * as echarts from 'echarts'
+import FinancialMetrics from './FinancialMetrics.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -294,6 +286,7 @@ const props = defineProps({
 
 // 响应式数据
 const stockData = ref(null)
+const allStocksData = ref([])
 const loading = ref(true)
 const error = ref(null)
 const radarChartRef = ref(null)
@@ -456,6 +449,9 @@ const loadStockData = async () => {
 
     const response = await axios.get(`/assets/${date}.json`)
     const allData = response.data
+    
+    // 保存全部股票数据用于计算平均值
+    allStocksData.value = allData
     
     const foundStock = allData.find(item => item.stockid === stockid)
     
@@ -728,7 +724,6 @@ const formatPrice = (price) => {
 const formatPE = (pe) => {
   if (!pe) return 'N/A'
   const numPE = typeof pe === 'string' ? parseFloat(pe) : pe
-  if (!isNaN(numPE) && numPE > 1000) return '>1000'
   if (isNaN(numPE)) return pe
   return numPE.toFixed(1)
 }
