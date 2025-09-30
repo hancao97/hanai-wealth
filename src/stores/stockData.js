@@ -185,7 +185,7 @@ export const useStockDataStore = defineStore('stockData', () => {
     return { icon: '🔥', text: '高估值' }
   }
 
-  // 筛选条件持久化
+  // 筛选条件持久化（使用 sessionStorage，仅在当前会话中保留）
   function saveFiltersToStorage() {
     try {
       const filtersData = {
@@ -193,15 +193,15 @@ export const useStockDataStore = defineStore('stockData', () => {
         currentDate: currentDate.value,
         currentPage: currentPage.value
       }
-      localStorage.setItem('stockFilters', JSON.stringify(filtersData))
+      sessionStorage.setItem('stockFilters', JSON.stringify(filtersData))
     } catch (error) {
-      console.warn('无法保存筛选条件到本地存储:', error)
+      console.warn('无法保存筛选条件到会话存储:', error)
     }
   }
 
   function loadFiltersFromStorage() {
     try {
-      const saved = localStorage.getItem('stockFilters')
+      const saved = sessionStorage.getItem('stockFilters')
       if (saved) {
         const filtersData = JSON.parse(saved)
         
@@ -216,16 +216,16 @@ export const useStockDataStore = defineStore('stockData', () => {
         return filtersData
       }
     } catch (error) {
-      console.warn('无法从本地存储加载筛选条件:', error)
+      console.warn('无法从会话存储加载筛选条件:', error)
     }
     return null
   }
 
   function clearFiltersStorage() {
     try {
-      localStorage.removeItem('stockFilters')
+      sessionStorage.removeItem('stockFilters')
     } catch (error) {
-      console.warn('无法清除本地存储的筛选条件:', error)
+      console.warn('无法清除会话存储的筛选条件:', error)
     }
   }
 
