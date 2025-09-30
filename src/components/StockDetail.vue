@@ -127,32 +127,11 @@
         </div>
       </div>
 
-      <!-- 数据卡片网格 -->
-      <div class="data-grid">
-        <!-- 估值信息 -->
-        <div class="data-card">
-          <h3 class="data-card-title">
-            <span class="data-card-icon">📊</span>
-            <span>估值分析</span>
-          </h3>
-          <table class="data-table">
-            <tbody>
-              <tr>
-                <td>GF估值评级</td>
-                <td>
-                  <span class="valuation-badge" :class="`valuation-${stockData.gf_valuation || 0}`">
-                    {{ getValuationDescription(stockData.gf_valuation) }}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td>GF合理估值</td>
-                <td>{{ stockData.gf_value ? `¥${stockData.gf_value.toFixed(2)}` : 'N/A' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <!-- 估值走势图表 -->
+      <ValuationChart 
+        :stock-data="stockData"
+        :date="props.date || route.query.date"
+      />
 
       <!-- 财务指标分析组件 -->
       <FinancialMetrics 
@@ -240,6 +219,7 @@ import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import * as echarts from 'echarts'
 import FinancialMetrics from './FinancialMetrics.vue'
+import ValuationChart from './ValuationChart.vue'
 
 const route = useRoute()
 const router = useRouter()
