@@ -4,7 +4,10 @@
     <div class="metric-main-data">
       <!-- 当前股票 -->
       <div class="metric-item metric-current">
-        <div class="metric-label">当前股票</div>
+        <div class="metric-header">
+          <div class="metric-label">当前股票</div>
+          <div class="metric-badge metric-badge-current">📌</div>
+        </div>
         <div class="metric-value" :class="hasCurrentValue ? '' : 'metric-no-data'">
           {{ hasCurrentValue ? formatValue(currentValue) : 'N/A' }}
         </div>
@@ -12,7 +15,10 @@
 
       <!-- 市场平均 -->
       <div class="metric-item">
-        <div class="metric-label">市场平均</div>
+        <div class="metric-header">
+          <div class="metric-label">市场平均</div>
+          <div class="metric-badge">🌐</div>
+        </div>
         <div class="metric-value metric-avg">{{ formatValue(marketAvg) }}</div>
         <div v-if="hasCurrentValue && hasMarketAvg" class="metric-diff" :class="getMarketDiffClass">
           <span class="metric-diff-arrow">{{ getMarketDiffArrow }}</span>
@@ -22,7 +28,10 @@
 
       <!-- 行业平均 -->
       <div class="metric-item">
-        <div class="metric-label">{{ industryName || '行业' }}平均</div>
+        <div class="metric-header">
+          <div class="metric-label">{{ industryName || '行业' }}平均</div>
+          <div class="metric-badge">🏭</div>
+        </div>
         <div class="metric-value metric-avg">{{ formatValue(industryAvg) }}</div>
         <div v-if="hasCurrentValue && hasIndustryAvg" class="metric-diff" :class="getIndustryDiffClass">
           <span class="metric-diff-arrow">{{ getIndustryDiffArrow }}</span>
@@ -35,13 +44,18 @@
     <div v-if="hasIndustryData" class="metric-industry-details">
       <!-- 排名 -->
       <div v-if="ranking" class="metric-ranking-box">
-        <div class="metric-ranking-label">行业排名</div>
+        <div class="metric-ranking-header">
+          <span class="metric-ranking-icon">🎯</span>
+          <span class="metric-ranking-label">行业排名</span>
+        </div>
         <div class="metric-ranking-value">
           <span class="metric-rank-number">{{ ranking.rank }}</span>
           <span class="metric-rank-total">/ {{ ranking.total }}</span>
         </div>
         <div class="metric-ranking-percent">
-          {{ higherIsBetter ? '前' : '后' }} {{ ((ranking.rank / ranking.total) * 100).toFixed(0) }}%
+          <span class="metric-percent-badge" :class="getRankingClass">
+            {{ higherIsBetter ? '前' : '后' }} {{ ((ranking.rank / ranking.total) * 100).toFixed(0) }}%
+          </span>
         </div>
       </div>
 
@@ -285,11 +299,20 @@ const ranking = computed(() => {
   )
 
   if (rank === -1) return null
-  
+
   return {
     rank: rank + 1,
     total: industryStocksWithValue.value.length
   }
+})
+
+// 排名等级样式
+const getRankingClass = computed(() => {
+  if (!ranking.value) return ''
+  const percent = (ranking.value.rank / ranking.value.total) * 100
+  if (percent <= 20) return 'rank-excellent'
+  if (percent <= 50) return 'rank-good'
+  return 'rank-normal'
 })
 
 // 格式化
@@ -305,8 +328,11 @@ const formatDiff = (value) => {
 
 // 跳转
 const handleStockClick = (stockid) => {
+  // 如果是当前股票，不跳转
+  if (stockid === props.currentStockId) return
   if (!stockid || !props.currentDate) return
-  const url = `/detail?stockid=${stockid}&date=${props.currentDate}`
+  
+  const url = `/#/detail?stockid=${stockid}&date=${props.currentDate}`
   window.open(url, '_blank')
 }
 </script>
@@ -350,12 +376,39 @@ const handleStockClick = (stockid) => {
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
 }
 
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 .metric-label {
   font-size: 11px;
   color: #64748b;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.metric-badge {
+  font-size: 14px;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.metric-badge-current {
+  opacity: 1;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .metric-value {
@@ -446,12 +499,23 @@ const handleStockClick = (stockid) => {
   transform: translateY(-2px);
 }
 
+.metric-ranking-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.metric-ranking-icon {
+  font-size: 14px;
+}
+
 .metric-ranking-label {
   font-size: 10px;
   color: #0369a1;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .metric-ranking-value {
@@ -475,9 +539,37 @@ const handleStockClick = (stockid) => {
 }
 
 .metric-ranking-percent {
+  margin-top: 4px;
+}
+
+.metric-percent-badge {
+  display: inline-block;
   font-size: 11px;
-  color: #0369a1;
-  font-weight: 600;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.metric-percent-badge.rank-excellent {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #15803d;
+  border: 1px solid #86efac;
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.15);
+}
+
+.metric-percent-badge.rank-good {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+}
+
+.metric-percent-badge.rank-normal {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.15);
 }
 
 .metric-extreme-box {
@@ -533,30 +625,45 @@ const handleStockClick = (stockid) => {
 }
 
 .metric-extreme-stock {
-  font-size: 11px;
+  font-size: 12px;
   color: #3b82f6;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: none;
+  padding: 6px 10px;
+  margin-top: 6px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  display: inline-block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.2s ease;
+  max-width: 100%;
+  transition: all 0.3s ease;
 }
 
 .metric-extreme-stock:hover {
-  color: #1d4ed8;
-  text-decoration: underline;
+  color: #2563eb;
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
 }
 
 .metric-extreme-stock.metric-current-stock {
-  color: #94a3b8;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+  font-weight: 700;
   cursor: default;
 }
 
 .metric-extreme-stock.metric-current-stock:hover {
-  color: #94a3b8;
-  text-decoration: none;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+  transform: none;
+  box-shadow: none;
 }
 
 /* 无数据提示 */

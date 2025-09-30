@@ -152,42 +152,6 @@
             </tbody>
           </table>
         </div>
-
-        <!-- 财务指标 -->
-        <div class="data-card">
-          <h3 class="data-card-title">
-            <span class="data-card-icon">💰</span>
-            <span>财务表现</span>
-          </h3>
-          <table class="data-table">
-            <tbody>
-              <tr>
-                <td>自由现金流</td>
-                <td>{{ formatCashFlow(stockData.total_free_cash_flow) }}</td>
-              </tr>
-              <tr>
-                <td>10年净利润增长</td>
-                <td>{{ stockData.total_netincome_growth_10y ? `${stockData.total_netincome_growth_10y.toFixed(2)}%` : 'N/A' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 价格区间 -->
-        <div class="data-card">
-          <h3 class="data-card-title">
-            <span class="data-card-icon">📈</span>
-            <span>价格区间</span>
-          </h3>
-          <table class="data-table">
-            <tbody>
-              <tr>
-                <td>10年年化回报</td>
-                <td>{{ stockData.pchange_10y ? `${stockData.pchange_10y.toFixed(2)}%` : 'N/A' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
 
       <!-- 财务指标分析组件 -->
@@ -509,7 +473,7 @@ const initRadarChart = () => {
         fontSize: 14
       },
       formatter: function(params) {
-        const indicators = ['价值评级', '成长能力', '价值动量', '盈利能力', '财务实力']
+        const indicators = ['价值评级：', '成长能力：', '价值动量：', '盈利能力：', '财务实力：']
         
         if (params && params.value && Array.isArray(params.value)) {
           let content = '<div style="padding: 8px; max-width: 300px;">'

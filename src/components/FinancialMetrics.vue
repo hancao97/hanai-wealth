@@ -1,9 +1,39 @@
 <template>
   <div class="financial-metrics-container">
+    <!-- 成长指标卡片 -->
+    <div class="metric-card metric-card-comprehensive">
+      <h3 class="metric-title">
+        <span class="metric-icon">🚀</span>
+        <span>成长指标</span>
+      </h3>
+      <ComprehensiveMetrics 
+        :stock-data="stockData"
+        :all-stocks-data="allStocksData"
+      />
+    </div>
+
+    <!-- 股息率卡片 -->
+    <div class="metric-card">
+      <h3 class="metric-title">
+        <span class="metric-icon">💰</span>
+        <span>股息率分析</span>
+      </h3>
+      <MetricContent 
+        :current-value="stockData.yield"
+        :all-stocks-data="allStocksData"
+        :industry-name="stockData.industry"
+        :current-stock-id="stockData.stockid"
+        :current-date="currentDate"
+        :field-name="'yield'"
+        :unit="'%'"
+        :metric-name="'股息率'"
+      />
+    </div>
+
     <!-- 毛利率卡片 -->
     <div class="metric-card">
       <h3 class="metric-title">
-        <span class="metric-icon">📊</span>
+        <span class="metric-icon">📈</span>
         <span>毛利率分析</span>
       </h3>
       <MetricContent 
@@ -73,29 +103,12 @@
         :higher-is-better="false"
       />
     </div>
-
-    <!-- 股息率卡片 -->
-    <div class="metric-card">
-      <h3 class="metric-title">
-        <span class="metric-icon">💰</span>
-        <span>股息率分析</span>
-      </h3>
-      <MetricContent 
-        :current-value="stockData.yield"
-        :all-stocks-data="allStocksData"
-        :industry-name="stockData.industry"
-        :current-stock-id="stockData.stockid"
-        :current-date="currentDate"
-        :field-name="'yield'"
-        :unit="'%'"
-        :metric-name="'股息率'"
-      />
-    </div>
   </div>
 </template>
 
 <script setup>
 import MetricContent from './MetricContent.vue'
+import ComprehensiveMetrics from './ComprehensiveMetrics.vue'
 
 const props = defineProps({
   stockData: {
@@ -151,8 +164,23 @@ const props = defineProps({
   font-size: 18px;
 }
 
+/* 综合指标卡片样式 */
+.metric-card-comprehensive {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.metric-card-comprehensive:hover {
+  box-shadow: 0 8px 20px rgba(251, 191, 36, 0.2);
+}
+
+.metric-card-comprehensive .metric-title {
+  color: #78350f;
+  border-bottom-color: rgba(251, 191, 36, 0.3);
+}
+
 /* 响应式设计 */
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .financial-metrics-container {
     grid-template-columns: 1fr;
   }
