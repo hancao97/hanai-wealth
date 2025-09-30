@@ -27,48 +27,81 @@
     </div>
     
     <!-- 仪表板 -->
-    <div class="dashboard">
-      <div class="dashboard-row">
-        <!-- 价值评估分布 -->
-        <div class="dashboard-card">
-          <h3>价值评估分布</h3>
-          <div class="chart-container">
-            <div ref="valuationChartRef" style="width: 100%; height: 300px;"></div>
+    <Transition name="dashboard-appear" appear>
+      <div class="dashboard">
+        <div class="dashboard-row">
+          <!-- 价值评估分布 -->
+          <div class="dashboard-card chart-card" :class="{ 'loading': !allData.length }">
+            <h3>
+              <span class="chart-icon">📈</span>
+              价值评估分布
+              <div class="chart-decoration"></div>
+            </h3>
+            <div class="chart-container">
+              <div v-show="!loading && allData.length" ref="valuationChartRef" style="width: 100%; height: 300px;"></div>
+              <div v-show="loading || !allData.length" class="chart-loading">
+                <div class="chart-skeleton">
+                  <div class="skeleton-circle"></div>
+                  <div class="skeleton-bars">
+                    <div class="skeleton-bar" v-for="n in 5" :key="n" :style="{ height: Math.random() * 60 + 20 + '%', animationDelay: n * 0.1 + 's' }"></div>
+                  </div>
+                </div>
+                <p class="loading-text">正在生成图表...</p>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <!-- 涨跌幅分布 -->
-        <div class="dashboard-card">
-          <h3>涨跌幅分布</h3>
-          <div class="chart-container">
-            <div ref="changeChartRef" style="width: 100%; height: 300px;"></div>
+          <!-- 涨跌幅分布 -->
+          <div class="dashboard-card chart-card" :class="{ 'loading': !allData.length }">
+            <h3>
+              <span class="chart-icon">📊</span>
+              涨跌幅分布
+              <div class="chart-decoration"></div>
+            </h3>
+            <div class="chart-container">
+              <div v-show="!loading && allData.length" ref="changeChartRef" style="width: 100%; height: 300px;"></div>
+              <div v-show="loading || !allData.length" class="chart-loading">
+                <div class="chart-skeleton">
+                  <div class="skeleton-circle"></div>
+                  <div class="skeleton-bars">
+                    <div class="skeleton-bar" v-for="n in 5" :key="n" :style="{ height: Math.random() * 60 + 20 + '%', animationDelay: n * 0.1 + 's' }"></div>
+                  </div>
+                </div>
+                <p class="loading-text">正在生成图表...</p>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <!-- 股息率统计 -->
-      <div class="dividend-stats-container">
+        
+        <!-- 股息率统计 -->
+        <div class="dividend-stats-container">
         <h3 class="dividend-stats-title">股息率分布统计</h3>
         <div class="dividend-stats-grid">
-          <div 
+          <AnimatedCounter
             v-for="(item, key) in dividendStatsItems" 
             :key="key"
-            class="dividend-stat-item clickable"
-            :class="[`dividend-${key}`, { active: filters.dividend === key }]"
+            :value="item.count"
+            :label="item.label"
+            :description="item.desc"
+            :variant="getDividendVariant(key)"
+            :icon="getDividendIcon(key)"
+            :trend="getDividendTrend(key)"
+            :clickable="true"
+            :class="[`dividend-${key}`, { 'counter-active': filters.dividend === key }]"
             @click="handleDividendFilter(key)"
-          >
-            <div class="dividend-stat-value" :class="{ 'number-updating': isUpdating }">
-              {{ item.count }}
-            </div>
-            <div class="dividend-stat-label">{{ item.label }}</div>
-            <div class="dividend-stat-desc">{{ item.desc }}</div>
-          </div>
+            :duration="600 + Math.random() * 400"
+            easing="easeOutBounce"
+          />
         </div>
       </div>
       
-      <!-- 市场概览统计 -->
+        <!-- 市场概览统计 -->
       <div class="market-overview-container">
-        <h3 class="market-overview-title">市场概览</h3>
+        <h3 class="market-overview-title">
+          <span class="title-icon">📊</span>
+          市场概览
+          <span class="title-decoration"></span>
+        </h3>
         <div class="market-overview-grid">
           <div class="market-stat-card price-card">
             <div class="market-stat-icon">
@@ -79,14 +112,26 @@
               </svg>
             </div>
             <div class="market-stat-content">
-              <div class="market-stat-value" :class="{ 'number-updating': isUpdating }">
-                ¥{{ marketOverview.avgPrice.toFixed(2) }}
+              <div class="market-stat-value-wrapper">
+                <AnimatedNumber
+                  :value="marketOverview.avgPrice"
+                  :decimals="2"
+                  prefix="¥"
+                  separator=","
+                  :duration="800"
+                  easing="easeOutCubic"
+                  class="market-stat-value enhanced"
+                />
+                <div class="value-particles" v-if="priceUpdating">
+                  <div class="particle" v-for="n in 8" :key="n"></div>
+                </div>
               </div>
               <div class="market-stat-label">平均股价</div>
               <Transition name="stat-content" mode="out-in">
-                <div class="market-stat-trend" :key="marketOverview.priceLevel.text">
-                  <span class="trend-icon">{{ marketOverview.priceLevel.icon }}</span>
+                <div class="market-stat-trend enhanced" :key="marketOverview.priceLevel.text">
+                  <span class="trend-icon pulsing">{{ marketOverview.priceLevel.icon }}</span>
                   <span class="trend-text">{{ marketOverview.priceLevel.text }}</span>
+                  <div class="trend-glow"></div>
                 </div>
               </Transition>
             </div>
@@ -100,21 +145,33 @@
               </svg>
             </div>
             <div class="market-stat-content">
-              <div class="market-stat-value" :class="{ 'number-updating': isUpdating }">
-                {{ marketOverview.avgPE.toFixed(2) }}
+              <div class="market-stat-value-wrapper">
+                <AnimatedNumber
+                  :value="marketOverview.avgPE"
+                  :decimals="2"
+                  separator=","
+                  :duration="900"
+                  easing="easeOutCubic"
+                  class="market-stat-value enhanced"
+                />
+                <div class="value-particles" v-if="peUpdating">
+                  <div class="particle" v-for="n in 8" :key="n"></div>
+                </div>
               </div>
               <div class="market-stat-label">平均市盈率（排除1000以上异常值和亏损企业）</div>
               <Transition name="stat-content" mode="out-in">
-                <div class="market-stat-trend" :key="marketOverview.peLevel.text">
-                  <span class="trend-icon">{{ marketOverview.peLevel.icon }}</span>
+                <div class="market-stat-trend enhanced" :key="marketOverview.peLevel.text">
+                  <span class="trend-icon pulsing">{{ marketOverview.peLevel.icon }}</span>
                   <span class="trend-text">{{ marketOverview.peLevel.text }}</span>
+                  <div class="trend-glow"></div>
                 </div>
               </Transition>
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </Transition>
     
     <!-- 筛选器 -->
     <div class="filters">
@@ -203,19 +260,41 @@
     </div>
     
     <!-- 状态栏 -->
-    <div class="status-bar">
+    <div class="status-bar" :class="{ 'loading': loading }">
       <div class="results-count">
-        <span v-if="loading">加载中...</span>
-        <span v-else-if="filteredData.length === 0">显示 0 / {{ allData.length }} 条记录</span>
-        <span v-else>
-          显示 {{ startIndex }}-{{ endIndex }} / {{ filteredData.length }} 条记录 (总计 {{ allData.length }} 条)
-        </span>
+        <Transition name="count" mode="out-in">
+          <span v-if="loading" key="loading" class="loading-text">
+            <div class="loading-spinner"></div>
+            加载中...
+          </span>
+          <span v-else-if="filteredData.length === 0" key="empty">
+            显示 0 / {{ allData.length.toLocaleString() }} 条记录
+          </span>
+          <span v-else key="results" class="results-text">
+            显示 
+            <AnimatedNumber :value="startIndex" :duration="300" class="result-number" />
+            -
+            <AnimatedNumber :value="endIndex" :duration="300" class="result-number" />
+            / 
+            <AnimatedNumber :value="filteredData.length" :duration="400" separator="," class="result-number" />
+            条记录 (总计 
+            <AnimatedNumber :value="allData.length" :duration="500" separator="," class="result-number total" />
+            条)
+          </span>
+        </Transition>
       </div>
-      <div v-if="loading" class="loading">正在加载数据...</div>
+      <Transition name="loading-indicator">
+        <div v-if="loading" class="loading-indicator">
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+          <span class="loading-text-secondary">正在加载数据...</span>
+        </div>
+      </Transition>
     </div>
     
     <!-- 错误信息 -->
-    <div v-if="error" class="error">{{ error }}</div>
+    <div v-if="error" class="error-message">{{ error }}</div>
     
     <!-- 数据表格 -->
     <div class="table-container">
@@ -261,9 +340,6 @@
             <td class="price">
               <div class="price-info">
                 <span class="price-value">{{ formatPrice(item.price) }}</span>
-                <span class="price-level-tag" :title="getPriceLevel(parseFloat(item.price?.toString().replace('¥', '') || 0)).text">
-                  {{ getPriceLevel(parseFloat(item.price?.toString().replace('¥', '') || 0)).icon }}
-                </span>
               </div>
             </td>
             <td :style="{ color: getPriceChangeColor(item.p_pct_change), fontWeight: '600' }">
@@ -272,9 +348,6 @@
             <td class="pe-ratio">
               <div class="pe-info">
                 <span class="pe-value">{{ formatPE(item.pettm) }}</span>
-                <span class="pe-level-tag" :title="getPELevel(parseFloat(item.pettm || 0)).text">
-                  {{ getPELevel(parseFloat(item.pettm || 0)).icon }}
-                </span>
               </div>
             </td>
             <td class="dividend-yield">{{ formatDividendYield(item.yield) }}</td>
@@ -342,6 +415,8 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useStockDataStore } from '@/stores/stockData'
 import * as echarts from 'echarts'
+import AnimatedNumber from './AnimatedNumber.vue'
+import AnimatedCounter from './AnimatedCounter.vue'
 
 const router = useRouter()
 const stockStore = useStockDataStore()
@@ -354,6 +429,8 @@ let changeChart = null
 
 // 动画状态
 const isUpdating = ref(false)
+const priceUpdating = ref(false)
+const peUpdating = ref(false)
 const animatedStats = ref({
   avgPrice: 0,
   avgPE: 0,
@@ -383,8 +460,6 @@ const {
   updateFilter,
   goToPage,
   detectStockBoard,
-  getPriceLevel,
-  getPELevel
 } = stockStore
 
 // 计算属性
@@ -470,6 +545,8 @@ const handleDateChange = async () => {
   if (currentDate.value) {
     await loadDataForDate(currentDate.value)
     updateCharts()
+    // 保存日期变化到本地存储
+    stockStore.saveFiltersToStorage()
   }
 }
 
@@ -525,20 +602,63 @@ const animateNumber = (from, to, duration = 600) => {
   })
 }
 
+// 获取股息率卡片变体
+const getDividendVariant = (key) => {
+  const variants = {
+    'low': 'default',
+    'medium': 'info',
+    'high': 'success',
+    'super-high': 'warning',
+    'abnormal': 'error',
+    'no-data': 'default'
+  }
+  return variants[key] || 'default'
+}
+
+// 获取股息率卡片图标
+const getDividendIcon = (key) => {
+  const icons = {
+    'low': 'chart',
+    'medium': 'trending',
+    'high': 'dollar',
+    'super-high': 'percent',
+    'abnormal': 'users',
+    'no-data': 'chart'
+  }
+  return icons[key] || 'chart'
+}
+
+// 获取股息率趋势
+const getDividendTrend = (key) => {
+  const trends = {
+    'low': { type: 'neutral', icon: '📊', text: '成长型股票' },
+    'medium': { type: 'up', icon: '📈', text: '稳健收益' },
+    'high': { type: 'up', icon: '💰', text: '价值投资' },
+    'super-high': { type: 'up', icon: '🔥', text: '高分红' },
+    'abnormal': { type: 'down', icon: '⚠️', text: '需谨慎' },
+    'no-data': { type: 'neutral', icon: '❓', text: '数据缺失' }
+  }
+  return trends[key] || null
+}
+
 // 触发数字更新动画
 const triggerStatsAnimation = async () => {
   isUpdating.value = true
   
   // 动画平均价格
   if (marketOverview.value.avgPrice !== animatedStats.value.avgPrice) {
-    await animateNumber(animatedStats.value.avgPrice, marketOverview.value.avgPrice)
+    priceUpdating.value = true
+    await new Promise(resolve => setTimeout(resolve, 800))
     animatedStats.value.avgPrice = marketOverview.value.avgPrice
+    priceUpdating.value = false
   }
   
   // 动画平均PE
   if (marketOverview.value.avgPE !== animatedStats.value.avgPE) {
-    await animateNumber(animatedStats.value.avgPE, marketOverview.value.avgPE)
+    peUpdating.value = true
+    await new Promise(resolve => setTimeout(resolve, 900))
     animatedStats.value.avgPE = marketOverview.value.avgPE
+    peUpdating.value = false
   }
   
   isUpdating.value = false
@@ -687,11 +807,11 @@ const getBoardClass = (board) => {
 const initCharts = async () => {
   await nextTick()
   
-  if (valuationChartRef.value) {
+  if (valuationChartRef.value && !valuationChart) {
     valuationChart = echarts.init(valuationChartRef.value)
   }
   
-  if (changeChartRef.value) {
+  if (changeChartRef.value && !changeChart) {
     changeChart = echarts.init(changeChartRef.value)
   }
   
@@ -712,12 +832,18 @@ const updateValuationChart = () => {
   
   const option = {
     backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 1000,
+    animationEasing: 'cubicOut',
+    animationDelay: (idx) => idx * 100,
     tooltip: {
       trigger: 'item',
       formatter: '{a} <br/>{b}: {c} ({d}%)',
       backgroundColor: 'rgba(255,255,255,0.95)',
       borderColor: '#e2e8f0',
-      textStyle: { color: '#334155' }
+      borderRadius: 8,
+      textStyle: { color: '#334155', fontSize: 13 },
+      extraCssText: 'backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0,0,0,0.12);'
     },
     series: [{
       name: '价值评估分布',
@@ -785,10 +911,15 @@ const updateValuationChart = () => {
           opacity: 0.9
         }
       },
-      data: valuationCounts.map(item => ({
+      data: valuationCounts.map((item, index) => ({
         value: item.count,
         name: item.label,
-        itemStyle: { color: item.color }
+        itemStyle: { 
+          color: item.color,
+          borderColor: 'rgba(255,255,255,0.8)',
+          borderWidth: 2
+        },
+        animationDelay: index * 150
       }))
     }]
   }
@@ -803,12 +934,18 @@ const updateChangeChart = () => {
   
   const option = {
     backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 1200,
+    animationEasing: 'elasticOut',
+    animationDelay: (idx) => idx * 120,
     tooltip: {
       trigger: 'item',
       formatter: '{a} <br/>{b}: {c} ({d}%)',
       backgroundColor: 'rgba(255,255,255,0.95)',
       borderColor: '#e2e8f0',
-      textStyle: { color: '#334155' }
+      borderRadius: 8,
+      textStyle: { color: '#334155', fontSize: 13 },
+      extraCssText: 'backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0,0,0,0.12);'
     },
     series: [{
       name: '涨跌幅分布',
@@ -876,10 +1013,15 @@ const updateChangeChart = () => {
           opacity: 0.9
         }
       },
-      data: changeCounts.map(item => ({
+      data: changeCounts.map((item, index) => ({
         value: item.count,
         name: item.label,
-        itemStyle: { color: item.color }
+        itemStyle: { 
+          color: item.color,
+          borderColor: 'rgba(255,255,255,0.8)',
+          borderWidth: 2
+        },
+        animationDelay: index * 180
       }))
     }]
   }
@@ -1002,8 +1144,17 @@ onUnmounted(() => {
 })
 
 // 监听数据变化，更新图表和动画
-watch(allData, () => {
-  updateCharts()
+watch(allData, async () => {
+  if (allData.value.length > 0) {
+    await nextTick()
+    if (!valuationChart && valuationChartRef.value) {
+      valuationChart = echarts.init(valuationChartRef.value)
+    }
+    if (!changeChart && changeChartRef.value) {
+      changeChart = echarts.init(changeChartRef.value)
+    }
+    updateCharts()
+  }
   triggerStatsAnimation()
 }, { deep: true })
 

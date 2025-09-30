@@ -5,7 +5,7 @@
     
     <!-- 炫酷页面头部 -->
     <div class="hero-header">
-      <router-link to="/" class="back-btn">← 返回列表</router-link>
+      <button @click="goBackToList" class="back-btn">← 返回列表</button>
       <div class="hero-content">
         <div class="hero-title-section">
           <h1 class="hero-title">HANAI · WEALTH</h1>
@@ -293,11 +293,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import * as echarts from 'echarts'
 
 const route = useRoute()
+const router = useRouter()
 const props = defineProps({
   stockid: String,
   date: String
@@ -448,6 +449,11 @@ const masterScore = computed(() => {
 })
 
 // 方法
+const goBackToList = () => {
+  // 直接使用路由器返回上一页，这样会保持列表页的状态
+  router.push('/')
+}
+
 const loadStockData = async () => {
   try {
     loading.value = true

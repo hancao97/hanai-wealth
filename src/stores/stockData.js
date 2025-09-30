@@ -185,6 +185,50 @@ export const useStockDataStore = defineStore('stockData', () => {
     return { icon: '🔥', text: '高估值' }
   }
 
+  // 筛选条件持久化
+  function saveFiltersToStorage() {
+    try {
+      const filtersData = {
+        filters: filters.value,
+        currentDate: currentDate.value,
+        currentPage: currentPage.value
+      }
+      localStorage.setItem('stockFilters', JSON.stringify(filtersData))
+    } catch (error) {
+      console.warn('无法保存筛选条件到本地存储:', error)
+    }
+  }
+
+  function loadFiltersFromStorage() {
+    try {
+      const saved = localStorage.getItem('stockFilters')
+      if (saved) {
+        const filtersData = JSON.parse(saved)
+        
+        // 恢复筛选条件
+        filters.value = { ...filters.value, ...filtersData.filters }
+        
+        // 恢复页码
+        if (filtersData.currentPage) {
+          currentPage.value = filtersData.currentPage
+        }
+        
+        return filtersData
+      }
+    } catch (error) {
+      console.warn('无法从本地存储加载筛选条件:', error)
+    }
+    return null
+  }
+
+  function clearFiltersStorage() {
+    try {
+      localStorage.removeItem('stockFilters')
+    } catch (error) {
+      console.warn('无法清除本地存储的筛选条件:', error)
+    }
+  }
+
   // 方法
   async function loadDatesConfig() {
     try {
@@ -195,6 +239,9 @@ export const useStockDataStore = defineStore('stockData', () => {
       availableDates.value = response.data.sort().reverse() // 最新日期在前
       
       if (availableDates.value.length > 0) {
+        // 先尝试从本地存储恢复筛选条件
+        const savedFilters = loadFiltersFromStorage()
+        
         // 检查URL参数中是否有指定日期
         const urlParams = new URLSearchParams(window.location.search)
         const urlDate = urlParams.get('date')
@@ -202,6 +249,8 @@ export const useStockDataStore = defineStore('stockData', () => {
         let selectedDate
         if (urlDate && availableDates.value.includes(urlDate)) {
           selectedDate = urlDate
+        } else if (savedFilters && savedFilters.currentDate && availableDates.value.includes(savedFilters.currentDate)) {
+          selectedDate = savedFilters.currentDate
         } else {
           selectedDate = availableDates.value[0]
         }
@@ -284,6 +333,8 @@ export const useStockDataStore = defineStore('stockData', () => {
   function updateFilter(key, value) {
     filters.value[key] = value
     applyFilters()
+    // 保存筛选条件到本地存储
+    saveFiltersToStorage()
   }
 
   function clearFilters() {
@@ -295,6 +346,8 @@ export const useStockDataStore = defineStore('stockData', () => {
       dividend: ''
     }
     applyFilters()
+    // 清除本地存储的筛选条件
+    clearFiltersStorage()
   }
 
   function goToPage(page) {
@@ -302,6 +355,8 @@ export const useStockDataStore = defineStore('stockData', () => {
       return
     }
     currentPage.value = page
+    // 保存页码变化到本地存储
+    saveFiltersToStorage()
   }
 
   // 工具函数
@@ -383,6 +438,9 @@ export const useStockDataStore = defineStore('stockData', () => {
     detectStockBoard,
     getDividendCategory,
     getPriceLevel,
-    getPELevel
+    getPELevel,
+    saveFiltersToStorage,
+    loadFiltersFromStorage,
+    clearFiltersStorage
   }
 })
