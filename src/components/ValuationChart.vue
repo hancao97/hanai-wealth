@@ -73,6 +73,98 @@ const statusBadgeClass = computed(() => {
   return 'status-fair'
 })
 
+// 数据对齐函数：将价值线数据对齐到价格线的每个日期，并延伸到价值线最后日期
+const alignValueDataToPrice = (medpsData, priceData) => {
+  if (!medpsData.length || !priceData.length) return medpsData
+  
+  // 将 medpsData 转换为 Map，便于查找
+  const medpsMap = new Map()
+  medpsData.forEach(item => {
+    const dateKey = new Date(item[0]).toDateString()
+    medpsMap.set(dateKey, item[1])
+  })
+  
+  // 获取价格线的最后一个日期和价值线的最后一个日期
+  const lastPriceDate = new Date(priceData[priceData.length - 1][0])
+  const lastMedpsDate = new Date(medpsData[medpsData.length - 1][0])
+  
+  // 确定结束日期：取价值线和价格线中较晚的日期
+  const endDate = lastMedpsDate > lastPriceDate ? lastMedpsDate : lastPriceDate
+  
+  const result = []
+  
+  // 第一阶段：处理价格线的所有日期
+  for (let i = 0; i < priceData.length; i++) {
+    const priceDate = new Date(priceData[i][0])
+    const dateKey = priceDate.toDateString()
+    
+    // 如果该日期在 medpsData 中存在，直接使用
+    if (medpsMap.has(dateKey)) {
+      result.push([priceData[i][0], medpsMap.get(dateKey)])
+    } else {
+      // 否则进行线性插值
+      const interpolatedValue = interpolateValue(medpsData, priceDate)
+      if (interpolatedValue !== null) {
+        result.push([priceData[i][0], interpolatedValue])
+      }
+    }
+  }
+  
+  // 第二阶段：如果价值线的日期超过了价格线，继续添加剩余的价值线数据
+  if (lastMedpsDate > lastPriceDate) {
+    for (let i = 0; i < medpsData.length; i++) {
+      const medpsDate = new Date(medpsData[i][0])
+      
+      // 只添加在价格线最后日期之后的价值数据
+      if (medpsDate > lastPriceDate) {
+        result.push([medpsData[i][0], medpsData[i][1]])
+      }
+    }
+  }
+  
+  return result
+}
+
+// 线性插值函数
+const interpolateValue = (medpsData, targetDate) => {
+  const targetTime = targetDate.getTime()
+  
+  // 找到目标日期前后的两个数据点
+  let beforePoint = null
+  let afterPoint = null
+  
+  for (let i = 0; i < medpsData.length; i++) {
+    const currentTime = new Date(medpsData[i][0]).getTime()
+    
+    if (currentTime <= targetTime) {
+      beforePoint = medpsData[i]
+    }
+    
+    if (currentTime >= targetTime && !afterPoint) {
+      afterPoint = medpsData[i]
+      break
+    }
+  }
+  
+  // 如果找不到前后点，返回最近的值
+  if (!beforePoint && !afterPoint) return null
+  if (!beforePoint) return afterPoint[1]
+  if (!afterPoint) return beforePoint[1]
+  
+  // 如果目标日期正好在某个数据点上
+  const beforeTime = new Date(beforePoint[0]).getTime()
+  const afterTime = new Date(afterPoint[0]).getTime()
+  
+  if (beforeTime === targetTime) return beforePoint[1]
+  if (afterTime === targetTime) return afterPoint[1]
+  
+  // 线性插值计算
+  const ratio = (targetTime - beforeTime) / (afterTime - beforeTime)
+  const interpolatedValue = beforePoint[1] + (afterPoint[1] - beforePoint[1]) * ratio
+  
+  return interpolatedValue
+}
+
 const initChart = (chartData) => {
   if (!chartRef.value) {
     console.error('chartRef is not available')
@@ -90,22 +182,27 @@ const initChart = (chartData) => {
   const medpsData = chartData.medps || []
   const priceData = chartData.price || []
   
-  console.log('medpsData length:', medpsData.length)
-  console.log('priceData length:', priceData.length)
+  console.log('原始 medpsData length:', medpsData.length)
+  console.log('原始 priceData length:', priceData.length)
+  
+  // 数据对齐：为价值线插值，使其与价格线的每个日期对齐
+  const alignedMedpsData = alignValueDataToPrice(medpsData, priceData)
+  
+  console.log('对齐后 medpsData length:', alignedMedpsData.length)
   
   // 获取最新的价值和价格
-  if (medpsData.length > 0) {
-    currentValue.value = medpsData[medpsData.length - 1][1].toFixed(2)
+  if (alignedMedpsData.length > 0) {
+    currentValue.value = alignedMedpsData[alignedMedpsData.length - 1][1].toFixed(2)
   }
   if (priceData.length > 0) {
     currentPrice.value = priceData[priceData.length - 1][1].toFixed(2)
   }
   
   // 计算各条价值参考线数据
-  const valuePlus30Data = medpsData.map(item => [item[0], item[1] * 1.3])
-  const valuePlus10Data = medpsData.map(item => [item[0], item[1] * 1.1])
-  const valueMinus10Data = medpsData.map(item => [item[0], item[1] * 0.9])
-  const valueMinus30Data = medpsData.map(item => [item[0], item[1] * 0.7])
+  const valuePlus30Data = alignedMedpsData.map(item => [item[0], item[1] * 1.3])
+  const valuePlus10Data = alignedMedpsData.map(item => [item[0], item[1] * 1.1])
+  const valueMinus10Data = alignedMedpsData.map(item => [item[0], item[1] * 0.9])
+  const valueMinus30Data = alignedMedpsData.map(item => [item[0], item[1] * 0.7])
   
   const option = {
     backgroundColor: 'transparent',
@@ -376,7 +473,7 @@ const initChart = (chartData) => {
       {
         name: '大师价值线',
         type: 'line',
-        data: medpsData,
+        data: alignedMedpsData,
         smooth: true,
         smoothMonotone: 'x',
         showSymbol: false,
