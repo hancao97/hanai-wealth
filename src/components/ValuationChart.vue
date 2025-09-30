@@ -325,7 +325,8 @@ const initChart = (chartData) => {
       }
     },
     series: [
-      // 背景区域 - 使用非堆叠方式，直接绘制区间
+      // 背景区域 - 使用堆叠方式，避免颜色重叠失真
+      // 从底部开始堆叠，每层只显示该区间的颜色
       {
         name: '严重低估区',
         type: 'line',
@@ -339,16 +340,19 @@ const initChart = (chartData) => {
           color: 'transparent'
         },
         areaStyle: {
-          color: 'rgba(46, 125, 50, 0.12)',
-          origin: 'start'
+          color: 'rgba(46, 125, 50, 0.15)'
         },
+        stack: 'valuation-bg',
         silent: true,
         z: 1
       },
       {
         name: '低估区',
         type: 'line',
-        data: valueMinus10Data,
+        data: valueMinus10Data.map((item, index) => [
+          item[0],
+          item[1] - valueMinus30Data[index][1]
+        ]),
         smooth: true,
         smoothMonotone: 'x',
         showSymbol: false,
@@ -358,16 +362,19 @@ const initChart = (chartData) => {
           color: 'transparent'
         },
         areaStyle: {
-          color: 'rgba(102, 187, 106, 0.1)',
-          origin: 'start'
+          color: 'rgba(102, 187, 106, 0.12)'
         },
+        stack: 'valuation-bg',
         silent: true,
-        z: 2
+        z: 1
       },
       {
         name: '合理偏低区',
         type: 'line',
-        data: medpsData,
+        data: alignedMedpsData.map((item, index) => [
+          item[0],
+          item[1] - valueMinus10Data[index][1]
+        ]),
         smooth: true,
         smoothMonotone: 'x',
         showSymbol: false,
@@ -377,16 +384,19 @@ const initChart = (chartData) => {
           color: 'transparent'
         },
         areaStyle: {
-          color: 'rgba(255, 167, 38, 0.05)',
-          origin: 'start'
+          color: 'rgba(129, 199, 132, 0.08)'
         },
+        stack: 'valuation-bg',
         silent: true,
-        z: 3
+        z: 1
       },
       {
         name: '合理偏高区',
         type: 'line',
-        data: valuePlus10Data,
+        data: valuePlus10Data.map((item, index) => [
+          item[0],
+          item[1] - alignedMedpsData[index][1]
+        ]),
         smooth: true,
         smoothMonotone: 'x',
         showSymbol: false,
@@ -396,16 +406,19 @@ const initChart = (chartData) => {
           color: 'transparent'
         },
         areaStyle: {
-          color: 'rgba(255, 152, 0, 0.08)',
-          origin: 'start'
+          color: 'rgba(255, 152, 0, 0.08)'
         },
+        stack: 'valuation-bg',
         silent: true,
-        z: 4
+        z: 1
       },
       {
         name: '高估区',
         type: 'line',
-        data: valuePlus30Data,
+        data: valuePlus30Data.map((item, index) => [
+          item[0],
+          item[1] - valuePlus10Data[index][1]
+        ]),
         smooth: true,
         smoothMonotone: 'x',
         showSymbol: false,
@@ -415,11 +428,11 @@ const initChart = (chartData) => {
           color: 'transparent'
         },
         areaStyle: {
-          color: 'rgba(239, 83, 80, 0.1)',
-          origin: 'start'
+          color: 'rgba(239, 83, 80, 0.12)'
         },
+        stack: 'valuation-bg',
         silent: true,
-        z: 5
+        z: 1
       },
       // 价值参考线
       {
