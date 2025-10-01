@@ -158,7 +158,7 @@
                   <div class="particle" v-for="n in 8" :key="n"></div>
                 </div>
               </div>
-              <div class="market-stat-label">平均市盈率（排除1000以上异常值和亏损企业）</div>
+              <div class="market-stat-label">平均市盈率</div>
               <Transition name="stat-content" mode="out-in">
                 <div class="market-stat-trend enhanced" :key="marketOverview.peLevel.text">
                   <span class="trend-icon pulsing">{{ marketOverview.peLevel.icon }}</span>

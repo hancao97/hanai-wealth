@@ -13,10 +13,10 @@
         </div>
       </div>
 
-      <!-- 市场平均 -->
+      <!-- A股平均 -->
       <div class="metric-item">
         <div class="metric-header">
-          <div class="metric-label">市场平均</div>
+          <div class="metric-label">A股平均</div>
           <div class="metric-badge">🌐</div>
         </div>
         <div class="metric-value metric-avg">{{ formatValue(marketAvg) }}</div>
@@ -52,9 +52,10 @@
           <span class="metric-rank-number">{{ ranking.rank }}</span>
           <span class="metric-rank-total">/ {{ ranking.total }}</span>
         </div>
-        <div class="metric-ranking-percent">
+        <!-- 只在"越高越好"的指标中显示百分比标签 -->
+        <div v-if="higherIsBetter" class="metric-ranking-percent">
           <span class="metric-percent-badge" :class="getRankingClass">
-            {{ higherIsBetter ? '前' : '后' }} {{ ((ranking.rank / ranking.total) * 100).toFixed(0) }}%
+            {{ getRankingText }}
           </span>
         </div>
       </div>
@@ -304,6 +305,14 @@ const ranking = computed(() => {
     rank: rank + 1,
     total: industryStocksWithValue.value.length
   }
+})
+
+// 排名文本显示（仅用于"越高越好"的指标）
+const getRankingText = computed(() => {
+  if (!ranking.value) return ''
+  
+  const percent = ((ranking.value.rank / ranking.value.total) * 100).toFixed(0)
+  return `前 ${percent}% 🎉`
 })
 
 // 排名等级样式

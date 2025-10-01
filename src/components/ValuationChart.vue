@@ -58,18 +58,31 @@ const statusText = computed(() => {
   const value = parseFloat(currentValue.value)
   if (isNaN(price) || isNaN(value)) return '--'
   
-  const ratio = ((price - value) / value * 100).toFixed(1)
-  if (price < value * 0.8) return '严重低估'
-  if (price < value) return '低估'
-  if (price > value * 1.2) return '高估'
-  return '合理'
+  // 以当前价格为基准，计算到价值线的涨跌幅
+  // 公式：(价值 - 当前价格) / 当前价格 × 100%
+  const upside = ((value - price) / price * 100)
+  const upsideText = upside > 0 
+    ? `+${upside.toFixed(1)}%` 
+    : `${upside.toFixed(1)}%`
+  
+  // 根据价格相对价值的位置判断状态
+  // 当前价格/价值的比率
+  const priceToValueRatio = price / value
+  
+  if (priceToValueRatio >= 1.3) return `严重高估 ${upsideText}`  // 价格≥价值的130%
+  if (priceToValueRatio >= 1.1) return `高估 ${upsideText}`      // 价格≥价值的110%
+  if (priceToValueRatio >= 0.9) return `合理 ${upsideText}`      // 价格在价值的90%-110%之间
+  if (priceToValueRatio >= 0.7) return `低估 ${upsideText}`      // 价格在价值的70%-90%之间
+  return `严重低估 ${upsideText}`                                 // 价格<价值的70%
 })
 
 const statusBadgeClass = computed(() => {
   const text = statusText.value
-  if (text === '严重低估') return 'status-undervalued-severe'
-  if (text === '低估') return 'status-undervalued'
-  if (text === '高估') return 'status-overvalued'
+  if (text.includes('严重高估')) return 'status-overvalued-severe'
+  if (text.includes('高估')) return 'status-overvalued'
+  if (text.includes('合理')) return 'status-fair'
+  if (text.includes('低估') && !text.includes('严重')) return 'status-undervalued'
+  if (text.includes('严重低估')) return 'status-undervalued-severe'
   return 'status-fair'
 })
 
@@ -182,21 +195,20 @@ const initChart = (chartData) => {
   const medpsData = chartData.medps || []
   const priceData = chartData.price || []
   
-  console.log('原始 medpsData length:', medpsData.length)
-  console.log('原始 priceData length:', priceData.length)
-  
   // 数据对齐：为价值线插值，使其与价格线的每个日期对齐
   const alignedMedpsData = alignValueDataToPrice(medpsData, priceData)
-  
-  console.log('对齐后 medpsData length:', alignedMedpsData.length)
+
+  console.log('chartData', medpsData, priceData)
+
+  console.log('alignedMedpsData', alignedMedpsData,priceData)
   
   // 获取最新的价值和价格
-  if (alignedMedpsData.length > 0) {
-    currentValue.value = alignedMedpsData[alignedMedpsData.length - 1][1].toFixed(2)
-  }
+  currentValue.value = chartData.iv?.toFixed(2) ?? '--';
   if (priceData.length > 0) {
     currentPrice.value = priceData[priceData.length - 1][1].toFixed(2)
   }
+
+  console.log('currentValue', currentPrice.value)
   
   // 计算各条价值参考线数据
   const valuePlus30Data = alignedMedpsData.map(item => [item[0], item[1] * 1.3])
@@ -595,16 +607,15 @@ const loadChartData = async () => {
   loading.value = true
   error.value = null
   try {
-    // const response = await axios.get(`https://www.gurufocus.cn/_api/chart/${props.stockData.stockid}/valuation?locale=zh-hans`)
-    // const data = response.data
-    const data = await import('../templates/charts.json')
+    const response = await axios.get(`https://www.gurufocus.cn/_api/chart/${props.stockData.stockid}/valuation?locale=zh-hans`)
+    const data = response.data
     
     // 先结束 loading 状态，让 DOM 显示出来
     loading.value = false
     
     // 等待 DOM 更新完成后再初始化图表
     await nextTick()
-    initChart(data.default)
+    initChart(data)
   } catch (err) {
     error.value = err.message
     console.error('Error loading chart data:', err)
@@ -710,25 +721,92 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+/* 玻璃反光效果 */
+.chart-status-badge::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(
+    45deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0) 35%,
+    rgba(255, 255, 255, 0.2) 48%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.2) 52%,
+    rgba(255, 255, 255, 0) 65%,
+    transparent 65%
+  );
+  transform: translateX(-100%) translateY(-100%);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.chart-status-badge:hover::before {
+  transform: translateX(100%) translateY(100%);
+}
+
+/* 发光边缘效果 */
+.chart-status-badge::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 24px;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.8),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.8)
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.chart-status-badge:hover::after {
+  opacity: 1;
 }
 
 .chart-status-badge:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 
+    0 8px 20px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.status-undervalued-severe {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-  color: #2e7d32;
-  border: 1px solid rgba(46, 125, 50, 0.2);
+/* 确保文字在最上层 */
+.chart-status-badge {
+  z-index: 1;
 }
 
-.status-undervalued {
-  background: linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%);
-  color: #558b2f;
-  border: 1px solid rgba(85, 139, 47, 0.2);
+.status-overvalued-severe {
+  background: linear-gradient(135deg, #ffebee 0%, #ef9a9a 100%);
+  color: #b71c1c;
+  border: 1px solid rgba(183, 28, 28, 0.3);
+}
+
+.status-overvalued {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%);
+  color: #e65100;
+  border: 1px solid rgba(230, 81, 0, 0.3);
 }
 
 .status-fair {
@@ -737,10 +815,16 @@ onUnmounted(() => {
   border: 1px solid rgba(25, 118, 210, 0.2);
 }
 
-.status-overvalued {
-  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-  color: #c62828;
-  border: 1px solid rgba(198, 40, 40, 0.2);
+.status-undervalued {
+  background: linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%);
+  color: #558b2f;
+  border: 1px solid rgba(85, 139, 47, 0.2);
+}
+
+.status-undervalued-severe {
+  background: linear-gradient(135deg, #e8f5e9 0%, #a5d6a7 100%);
+  color: #2e7d32;
+  border: 1px solid rgba(46, 125, 50, 0.3);
 }
 
 .valuation-chart {

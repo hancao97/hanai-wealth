@@ -152,7 +152,7 @@ export const useStockDataStore = defineStore('stockData', () => {
       
       // 计算平均市盈率
       const pe = parseFloat(item.pettm)
-      if (!isNaN(pe) && pe < 1000 && pe > 0) {
+      if (!isNaN(pe) && pe > 0) {
         totalPE += pe
         peCount++
       }
