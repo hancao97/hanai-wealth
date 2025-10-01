@@ -720,12 +720,12 @@ const formatGFValue = (gfValue, currentPrice) => {
   if (currPrice > 0) {
     if (gfVal > currPrice) {
       className = 'undervalued'
-      const upside = ((gfVal - currPrice) / currPrice * 100).toFixed(1)
-      displayText = `¥${gfVal.toFixed(2)} (+${upside}%)`
+      const upside = ((currPrice - gfVal) / gfVal * 100).toFixed(1)
+      displayText = `¥${gfVal.toFixed(2)} (${upside}%)`
     } else if (gfVal < currPrice) {
       className = 'overvalued'
-      const downside = ((currPrice - gfVal) / currPrice * 100).toFixed(1)
-      displayText = `¥${gfVal.toFixed(2)} (-${downside}%)`
+      const downside = ((currPrice - gfVal) / gfVal * 100).toFixed(1)
+      displayText = `¥${gfVal.toFixed(2)} (+${downside}%)`
     } else {
       className = 'undervalued'
       displayText = `¥${gfVal.toFixed(2)} (合理)`

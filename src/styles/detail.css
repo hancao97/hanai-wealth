@@ -72,10 +72,18 @@
   letter-spacing: 1px;
 }
 
-.back-btn {
+/* 头部按钮容器 */
+.header-buttons {
   position: absolute;
   top: 20px;
   right: 20px;
+  display: flex;
+  gap: 12px;
+  z-index: 2;
+}
+
+.back-btn,
+.gurufocus-btn {
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -85,14 +93,31 @@
   text-decoration: none;
   font-weight: 600;
   transition: all 0.3s ease;
-  z-index: 2;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.back-btn:hover {
+.back-btn:hover,
+.gurufocus-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+.gurufocus-btn {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.gurufocus-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.btn-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* 股票信息卡片 */

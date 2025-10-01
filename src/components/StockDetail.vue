@@ -5,7 +5,13 @@
     
     <!-- 炫酷页面头部 -->
     <div class="hero-header">
-      <button @click="goBackToList" class="back-btn">← 返回列表</button>
+      <div class="header-buttons">
+        <button @click="goBackToList" class="back-btn">← 返回列表</button>
+        <button @click="goToGurufocus" class="gurufocus-btn" v-if="stockData">
+          <span class="btn-icon">🔗</span>
+          前往价值大师网
+        </button>
+      </div>
       <div class="hero-content">
         <div class="hero-title-section">
           <h1 class="hero-title">HANAI · WEALTH</h1>
@@ -377,6 +383,24 @@ const masterScore = computed(() => {
 const goBackToList = () => {
   // 直接使用路由器返回上一页，这样会保持列表页的状态
   router.push('/')
+}
+
+const goToGurufocus = () => {
+  if (!stockData.value) return
+  
+  const exchange = stockData.value.exchange_ || 'SHSE'
+  const symbol = stockData.value.symbol
+  
+  if (!symbol) {
+    console.warn('股票代码不存在')
+    return
+  }
+  
+  // 构建价值大师网URL
+  const gurufocusUrl = `https://www.gurufocus.cn/stock/${exchange}:${symbol}/summary`
+  
+  // 在新标签页打开
+  window.open(gurufocusUrl, '_blank')
 }
 
 const loadStockData = async () => {
