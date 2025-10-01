@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/hanai-wealth/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HANAI · WEALTH - 智能投资决策平台</title>
+    <script>
+      // GitHub Pages SPA 路由恢复
+      (function(){
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect != location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/hanai-wealth/assets/main-3741bd0d.js"></script>
+    <link rel="stylesheet" href="/hanai-wealth/assets/index-96211dd2.css">
+  </head>
+  <body>
+    <div id="app"></div>
+    
+  </body>
+</html>
