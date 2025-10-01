@@ -4,7 +4,7 @@ import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './', // 使用相对路径，适合静态文件部署
+  base: '/hanai-wealth/', // GitHub Pages 项目路径
   plugins: [vue()],
   resolve: {
     alias: {
