@@ -216,6 +216,9 @@
         </div>
       </div>
     </div>
+
+    <!-- AI问答助手 -->
+    <AIChat :stock-data="stockData" />
   </div>
 </template>
 
@@ -226,6 +229,7 @@ import axios from 'axios'
 import * as echarts from 'echarts'
 import FinancialMetrics from './FinancialMetrics.vue'
 import ValuationChart from './ValuationChart.vue'
+import AIChat from './AIChat.vue'
 
 const route = useRoute()
 const router = useRouter()

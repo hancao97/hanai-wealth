@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: '127.0.0.1', // 使用 IP 地址而不是 localhost
     port: 5173,
     open: true,
     cors: true,
