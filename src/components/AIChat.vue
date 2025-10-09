@@ -29,17 +29,31 @@
       </button>
     </div>
 
-    <!-- 聊天对话框 -->
+    <!-- 遮罩层 -->
+    <transition name="backdrop-fade">
+      <div v-if="isOpen" class="chat-backdrop" @click="toggleChat"></div>
+    </transition>
+
+    <!-- 聊天抽屉 -->
     <transition name="chat-slide">
       <div v-if="isOpen" class="ai-chat-dialog">
-        <!-- 对话框头部 -->
+        <!-- 抽屉头部 -->
         <div class="chat-header">
-          <div class="header-content">
-            <div class="header-text">
-              <h3>HANAI AI 投资助手</h3>
+          <div class="header-left">
+            <div class="header-icon-wrapper">
+              <span class="header-bot-icon">🤖</span>
+            </div>
+            <div class="header-info">
+              <div class="header-title">HANAI</div>
+              <div class="header-status">
+                <span class="status-dot"></span>
+                <span class="status-text">在线</span>
+              </div>
             </div>
           </div>
-          <button @click="toggleChat" class="close-btn">✕</button>
+          <button @click="toggleChat" class="close-btn">
+            <span class="close-icon">✕</span>
+          </button>
         </div>
 
         <!-- 消息列表 -->
@@ -70,43 +84,25 @@
           <!-- 欢迎消息 -->
           <div v-if="messages.length === 0 && !isLoading" class="welcome-message">
             <div class="welcome-icon">👋</div>
-            <h4>您好！我是AI投资助手</h4>
-            <p>我可以帮您分析这只股票，回答您的投资疑问。</p>
-            <div v-if="quickQuestions.length > 0" class="quick-questions">
-              <button 
-                v-for="(question, index) in quickQuestions" 
-                :key="index"
-                @click="askQuestion(question)"
-                class="quick-question-btn"
-              >
-                {{ question }}
-              </button>
-            </div>
+            <h4>您好！我是 HANAI 投资助手</h4>
+            <p>可以帮您分析 <span style="color: #667eea;font-weight: 700;">{{stockData.company}}</span> 的价值潜力</p>
           </div>
         </div>
 
-        <!-- 输入框 -->
-        <div class="chat-input-container">
-          <textarea
-            v-model="inputMessage"
-            @keydown.enter.prevent="handleSend"
-            placeholder="输入您的问题..."
-            class="chat-input"
-            rows="1"
-            ref="inputTextarea"
-          ></textarea>
+        <!-- 分析按钮区域 -->
+        <div class="analysis-actions">
           <button 
-            @click="handleSend" 
-            class="send-btn"
-            :disabled="!inputMessage.trim() || isLoading"
+            @click="startValueAnalysis" 
+            class="analysis-btn"
+            :disabled="isLoading"
           >
-            <span class="send-icon">📤</span>
+            <span class="btn-icon">💎</span>
+            <span class="btn-content">
+              <span class="btn-text">价值分析</span>
+              <span class="btn-subtitle">深度解读投资价值</span>
+            </span>
+            <span class="btn-arrow">→</span>
           </button>
-        </div>
-
-        <!-- 提示信息 -->
-        <div class="chat-footer">
-          <span class="footer-hint">💡 提示：AI助手基于股票数据提供参考意见，投资需谨慎</span>
         </div>
       </div>
     </transition>
@@ -170,10 +166,31 @@ const handleSend = () => {
   simulateAIResponse(userMessage.content)
 }
 
-// 快速提问
-const askQuestion = (question) => {
-  inputMessage.value = question
-  handleSend()
+// 价值分析
+const startValueAnalysis = () => {
+  if (isLoading.value) return
+  
+  const analysisQuestion = `请对 ${props.stockData?.company || '该股票'} 进行全面的价值分析，包括：
+1. 财务状况评估
+2. 估值水平分析
+3. 投资价值判断
+4. 风险提示`
+  
+  const userMessage = {
+    role: 'user',
+    content: '价值分析',
+    timestamp: getCurrentTime()
+  }
+  
+  messages.value.push(userMessage)
+  
+  // 滚动到底部
+  nextTick(() => {
+    scrollToBottom()
+  })
+  
+  // 模拟AI回复
+  simulateAIResponse(analysisQuestion)
 }
 
 // 模拟AI响应
@@ -270,6 +287,35 @@ onMounted(() => {
   bottom: 30px;
   right: 30px;
   z-index: 9999;
+}
+
+/* 遮罩层 */
+.chat-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 9997;
+  cursor: pointer;
+}
+
+/* 遮罩层动画 */
+.backdrop-fade-enter-active,
+.backdrop-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.backdrop-fade-enter-from,
+.backdrop-fade-leave-to {
+  opacity: 0;
+}
+
+.backdrop-fade-enter-to,
+.backdrop-fade-leave-from {
+  opacity: 1;
 }
 
 /* 浮动按钮容器 */
@@ -532,83 +578,237 @@ onMounted(() => {
     0 4px 10px rgba(118, 75, 162, 0.3);
 }
 
-/* 聊天对话框 */
+/* 聊天抽屉 */
 .ai-chat-dialog {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
-  width: 420px;
-  height: 600px;
+  top: 0;
+  right: 0;
+  width: 480px;
+  height: 100vh;
   background: white;
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-left: 1px solid rgba(148, 163, 184, 0.2);
+  z-index: 9998;
 }
 
-/* 对话框头部 */
+/* 抽屉头部 - 紧凑设计 */
 .chat-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  color: #1e293b;
+  padding: 16px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 24px 24px 0 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  position: relative;
+  overflow: hidden;
 }
 
-.header-content {
+/* 动态渐变底边 */
+.chat-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    #667eea 20%,
+    #764ba2 50%,
+    #f093fb 80%,
+    transparent 100%);
+  background-size: 200% 100%;
+  animation: headerLineFlow 3s linear infinite;
+}
+
+@keyframes headerLineFlow {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
+/* 左侧内容 */
+.header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
+  z-index: 1;
 }
 
-.header-logo {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
-  background: white;
-  border-radius: 8px;
-  padding: 4px;
-}
-
-.header-icon {
-  font-size: 32px;
-  line-height: 1;
-}
-
-.header-text h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.header-text p {
-  margin: 4px 0 0 0;
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.close-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 20px;
+/* 图标容器 */
+.header-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 12px rgba(102, 126, 234, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+  animation: iconBreath 3s ease-in-out infinite;
+}
+
+@keyframes iconBreath {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 
+      0 4px 12px rgba(102, 126, 234, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 
+      0 6px 16px rgba(102, 126, 234, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+}
+
+/* 图标光晕 */
+.header-icon-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  animation: iconGlow 2s ease-in-out infinite;
+}
+
+@keyframes iconGlow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.header-bot-icon {
+  font-size: 22px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* 头部信息 */
+.header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 在线状态 */
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+.status-text {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.close-btn {
+  background: rgba(148, 163, 184, 0.1);
+  border: none;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.close-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.close-icon {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.close-btn:hover::before {
+  opacity: 1;
+}
+
+.close-btn:hover .close-icon {
   transform: rotate(90deg);
+}
+
+.close-btn:active {
+  transform: scale(0.95);
 }
 
 /* 消息列表 */
@@ -616,43 +816,64 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.03) 0%, transparent 50%),
+    linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: relative;
+}
+
+/* 消息列表装饰背景 */
+.chat-messages::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: linear-gradient(180deg, rgba(102, 126, 234, 0.05) 0%, transparent 100%);
+  pointer-events: none;
 }
 
 .chat-messages::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .chat-messages::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(148, 163, 184, 0.05);
+  border-radius: 4px;
+  margin: 8px 0;
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 3px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.4), rgba(118, 75, 162, 0.4));
+  border-radius: 4px;
+  transition: all 0.3s ease;
 }
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.6), rgba(118, 75, 162, 0.6));
+  box-shadow: 0 0 6px rgba(102, 126, 234, 0.3);
 }
 
 /* 消息气泡 */
 .message-wrapper {
   display: flex;
-  animation: messageSlideIn 0.3s ease;
+  animation: messageSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
 }
 
 @keyframes messageSlideIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px) scale(0.9);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -669,12 +890,34 @@ onMounted(() => {
   padding: 12px 16px;
   border-radius: 16px;
   position: relative;
+  transition: all 0.3s ease;
 }
 
 .message-wrapper.user .message-bubble {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-size: 200% 200%;
   color: white;
   border-bottom-right-radius: 4px;
+  box-shadow: 
+    0 4px 12px rgba(102, 126, 234, 0.3),
+    0 2px 6px rgba(118, 75, 162, 0.2);
+  animation: messageGradient 3s ease infinite;
+}
+
+@keyframes messageGradient {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.message-wrapper.user .message-bubble:hover {
+  transform: translateX(-4px);
+  box-shadow: 
+    0 6px 16px rgba(102, 126, 234, 0.4),
+    0 3px 8px rgba(118, 75, 162, 0.3);
 }
 
 .message-wrapper.assistant .message-bubble {
@@ -682,7 +925,17 @@ onMounted(() => {
   border: 1px solid rgba(148, 163, 184, 0.2);
   color: #334155;
   border-bottom-left-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.message-wrapper.assistant .message-bubble:hover {
+  transform: translateX(4px);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.05);
+  border-color: rgba(102, 126, 234, 0.3);
 }
 
 .message-content {
@@ -710,6 +963,19 @@ onMounted(() => {
 /* 加载动画 */
 .loading-bubble {
   padding: 16px 20px;
+  background: linear-gradient(135deg, 
+    rgba(102, 126, 234, 0.05) 0%, 
+    rgba(118, 75, 162, 0.05) 100%);
+  animation: loadingPulse 2s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
+  }
 }
 
 .typing-indicator {
@@ -719,11 +985,12 @@ onMounted(() => {
 }
 
 .typing-indicator span {
-  width: 8px;
-  height: 8px;
-  background: #94a3b8;
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 50%;
   animation: typingBounce 1.4s infinite ease-in-out;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
 
 .typing-indicator span:nth-child(1) {
@@ -736,11 +1003,11 @@ onMounted(() => {
 
 @keyframes typingBounce {
   0%, 80%, 100% {
-    transform: scale(0.8);
-    opacity: 0.5;
+    transform: scale(0.6) translateY(0);
+    opacity: 0.4;
   }
   40% {
-    transform: scale(1);
+    transform: scale(1.2) translateY(-6px);
     opacity: 1;
   }
 }
@@ -750,6 +1017,18 @@ onMounted(() => {
   text-align: center;
   padding: 40px 20px;
   color: #64748b;
+  animation: welcomeFadeIn 0.8s ease;
+}
+
+@keyframes welcomeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .welcome-logo {
@@ -766,6 +1045,23 @@ onMounted(() => {
 .welcome-icon {
   font-size: 48px;
   margin-bottom: 16px;
+  animation: welcomeIconFloat 3s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes welcomeIconFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8px) rotate(-5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-8px) rotate(5deg);
+  }
 }
 
 .welcome-message h4 {
@@ -790,101 +1086,162 @@ onMounted(() => {
 
 .quick-question-btn {
   background: white;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  border: 2px solid rgba(102, 126, 234, 0.3);
   color: #667eea;
   padding: 10px 16px;
   border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.quick-question-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: left 0.4s ease;
+  z-index: -1;
 }
 
 .quick-question-btn:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  transform: translateX(4px);
+  transform: translateX(4px) scale(1.02);
   border-color: transparent;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-/* 输入框容器 */
-.chat-input-container {
-  display: flex;
-  gap: 12px;
+.quick-question-btn:hover::before {
+  left: 0;
+}
+
+/* 分析按钮区域 */
+.analysis-actions {
   padding: 16px 20px;
-  background: white;
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
-  align-items: flex-end;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
 }
 
-.chat-input {
-  flex: 1;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 12px;
-  padding: 10px 14px;
-  font-size: 14px;
-  font-family: inherit;
-  resize: none;
-  max-height: 100px;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-}
-
-.chat-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.chat-input::placeholder {
-  color: #94a3b8;
-}
-
-.send-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* 主分析按钮 */
+.analysis-btn {
+  width: 100%;
+  padding: 12px 16px;
   border: none;
-  color: white;
-  width: 44px;
-  height: 44px;
   border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-size: 200% 200%;
+  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
+  gap: 10px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 6px 18px rgba(102, 126, 234, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.send-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+/* 按钮背景动画 */
+.analysis-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%);
+  transition: left 0.6s ease;
 }
 
-.send-btn:disabled {
-  opacity: 0.5;
+.analysis-btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.analysis-btn:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 
+    0 12px 32px rgba(102, 126, 234, 0.4),
+    0 6px 16px rgba(118, 75, 162, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  animation: btnGradientFlow 3s ease infinite;
+}
+
+@keyframes btnGradientFlow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.analysis-btn:active:not(:disabled) {
+  transform: translateY(-2px) scale(0.99);
+}
+
+.analysis-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
-.send-icon {
-  font-size: 18px;
-  line-height: 1;
+.btn-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  animation: iconFloat 3s ease-in-out infinite;
 }
 
-/* 底部提示 */
-.chat-footer {
-  padding: 12px 20px;
-  background: #f8fafc;
-  border-top: 1px solid rgba(148, 163, 184, 0.1);
-  text-align: center;
+@keyframes iconFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
-.footer-hint {
+.btn-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.btn-text {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.btn-subtitle {
   font-size: 11px;
-  color: #64748b;
-  line-height: 1.4;
+  opacity: 0.85;
+  font-weight: 400;
 }
 
-/* 过渡动画 */
+.btn-arrow {
+  font-size: 18px;
+  font-weight: 700;
+  transition: transform 0.3s ease;
+}
+
+.analysis-btn:hover:not(:disabled) .btn-arrow {
+  transform: translateX(4px);
+}
+
+/* 抽屉滑入滑出动画 */
 .chat-slide-enter-active,
 .chat-slide-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -892,8 +1249,12 @@ onMounted(() => {
 
 .chat-slide-enter-from,
 .chat-slide-leave-to {
-  opacity: 0;
-  transform: translateY(20px) scale(0.95);
+  transform: translateX(100%);
+}
+
+.chat-slide-enter-to,
+.chat-slide-leave-from {
+  transform: translateX(0);
 }
 
 /* 响应式设计 */
@@ -917,29 +1278,29 @@ onMounted(() => {
   }
 
   .ai-chat-dialog {
-    width: calc(100vw - 40px);
-    height: calc(100vh - 100px);
-    max-width: 400px;
-    bottom: 20px;
-    right: 20px;
+    width: 400px;
+    max-width: calc(100vw - 40px);
   }
 
   .chat-header {
-    padding: 16px;
+    padding: 14px 16px;
   }
 
-  .header-logo {
-    width: 32px;
-    height: 32px;
-    padding: 3px;
+  .header-icon-wrapper {
+    width: 36px;
+    height: 36px;
   }
 
-  .header-text h3 {
-    font-size: 16px;
+  .header-bot-icon {
+    font-size: 20px;
   }
 
-  .header-text p {
-    font-size: 11px;
+  .header-title {
+    font-size: 15px;
+  }
+
+  .status-text {
+    font-size: 10px;
   }
 
   .chat-messages {
@@ -955,21 +1316,27 @@ onMounted(() => {
     font-size: 13px;
   }
 
-  .chat-input-container {
-    padding: 12px 16px;
+  .analysis-actions {
+    padding: 14px 16px;
   }
 
-  .chat-input {
-    font-size: 13px;
-    padding: 8px 12px;
+  .analysis-btn {
+    padding: 10px 14px;
   }
 
-  .send-btn {
-    width: 40px;
-    height: 40px;
+  .btn-icon {
+    font-size: 18px;
   }
 
-  .send-icon {
+  .btn-text {
+    font-size: 14px;
+  }
+
+  .btn-subtitle {
+    font-size: 10px;
+  }
+
+  .btn-arrow {
     font-size: 16px;
   }
 
@@ -980,23 +1347,12 @@ onMounted(() => {
     margin-bottom: 16px;
   }
 
-  .chat-footer {
-    padding: 10px 16px;
-  }
-
-  .footer-hint {
-    font-size: 10px;
-  }
 }
 
 @media (max-width: 480px) {
   .ai-chat-dialog {
-    width: calc(100vw - 20px);
-    height: calc(100vh - 60px);
+    width: 100vw;
     max-width: none;
-    bottom: 10px;
-    right: 10px;
-    border-radius: 20px;
   }
 
   .ai-chat-fab {

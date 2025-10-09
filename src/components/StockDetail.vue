@@ -136,7 +136,6 @@
       <!-- 估值走势图表 -->
       <ValuationChart 
         :stock-data="stockData"
-        :date="props.date || route.query.date"
       />
 
       <!-- 财务指标分析组件 -->

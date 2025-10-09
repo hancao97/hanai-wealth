@@ -108,10 +108,6 @@ const props = defineProps({
     type: Object,
     required: true
   },
-  date: {
-    type: String,
-    required: true
-  }
 })
 
 const loading = ref(false)
