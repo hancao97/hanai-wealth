@@ -9,16 +9,53 @@
         </div>
         <div class="date-selector">
           <label for="dateSelect">数据日期</label>
-          <select 
-            id="dateSelect" 
-            class="date-select-input"
-            v-model="currentDate"
-            @change="handleDateChange"
-          >
-            <option v-for="date in availableDates" :key="date" :value="date">
-              {{ date }}
-            </option>
-          </select>
+          <div class="date-controls">
+            <button 
+              class="date-nav-btn" 
+              :class="{ disabled: !hasPreviousDate }"
+              :disabled="!hasPreviousDate"
+              @click="goToPreviousDate"
+              title="前一日"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <select 
+              id="dateSelect" 
+              class="date-select-input"
+              v-model="currentDate"
+              @change="handleDateChange"
+            >
+              <option v-for="date in availableDates" :key="date" :value="date">
+                {{ date }}
+              </option>
+            </select>
+            <button 
+              class="date-nav-btn" 
+              :class="{ disabled: !hasNextDate }"
+              :disabled="!hasNextDate"
+              @click="goToNextDate"
+              title="后一日"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+            <button 
+              class="date-nav-btn date-today-btn" 
+              :class="{ active: isLatestDate }"
+              :disabled="isLatestDate"
+              @click="goToLatestDate"
+              :title="isLatestDate ? '当前已是最新日期' : `跳转到最新日期 (${availableDates[0]})`"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span class="date-btn-label">最新</span>
+            </button>
+          </div>
           <div class="date-status" :class="dateStatusClass">
             {{ dateStatusText }}
           </div>
@@ -467,6 +504,23 @@ const {
 const startIndex = computed(() => (currentPage.value - 1) * stockStore.pageSize + 1)
 const endIndex = computed(() => Math.min(currentPage.value * stockStore.pageSize, filteredData.value.length))
 
+// 日期导航相关计算属性
+const currentDateIndex = computed(() => {
+  return availableDates.value.indexOf(currentDate.value)
+})
+
+const hasPreviousDate = computed(() => {
+  return currentDateIndex.value < availableDates.value.length - 1
+})
+
+const hasNextDate = computed(() => {
+  return currentDateIndex.value > 0
+})
+
+const isLatestDate = computed(() => {
+  return currentDateIndex.value === 0
+})
+
 const dateStatusText = computed(() => {
   if (loading.value) return '加载中...'
   if (error.value) return '加载失败'
@@ -548,6 +602,30 @@ const handleDateChange = async () => {
     updateCharts()
     // 保存日期变化到本地存储
     stockStore.saveFiltersToStorage()
+  }
+}
+
+// 日期导航方法
+const goToPreviousDate = async () => {
+  if (hasPreviousDate.value) {
+    const prevIndex = currentDateIndex.value + 1
+    currentDate.value = availableDates.value[prevIndex]
+    await handleDateChange()
+  }
+}
+
+const goToNextDate = async () => {
+  if (hasNextDate.value) {
+    const nextIndex = currentDateIndex.value - 1
+    currentDate.value = availableDates.value[nextIndex]
+    await handleDateChange()
+  }
+}
+
+const goToLatestDate = async () => {
+  if (!isLatestDate.value) {
+    currentDate.value = availableDates.value[0]
+    await handleDateChange()
   }
 }
 

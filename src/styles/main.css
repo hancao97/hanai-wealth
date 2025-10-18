@@ -71,7 +71,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 200px;
+  min-width: 260px;
 }
 
 .date-selector label {
@@ -82,8 +82,107 @@
   letter-spacing: 0.5px;
 }
 
+.date-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 44px;
+  padding: 0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  color: #1e40af;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  flex-shrink: 0;
+}
+
+.date-nav-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+}
+
+.date-nav-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(59,130,246,0.2);
+}
+
+.date-nav-btn.disabled,
+.date-nav-btn:disabled {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.date-today-btn {
+  width: auto;
+  min-width: 56px;
+  padding: 0 10px;
+  gap: 4px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #10b981;
+  color: white;
+  font-weight: 600;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.date-today-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  border-color: #059669;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.date-today-btn.active,
+.date-today-btn:disabled {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-color: #d1d5db;
+  color: #64748b;
+  cursor: not-allowed;
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  position: relative;
+}
+
+.date-today-btn.active::after,
+.date-today-btn:disabled::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(100, 116, 139, 0.03),
+    rgba(100, 116, 139, 0.03) 10px,
+    rgba(100, 116, 139, 0.01) 10px,
+    rgba(100, 116, 139, 0.01) 20px
+  );
+  pointer-events: none;
+}
+
+.date-btn-label {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
 .date-select-input {
-  padding: 12px 40px 12px 16px;
+  flex: 1;
+  padding: 12px 16px;
   background: white;
   border: 2px solid #d1d5db;
   border-radius: 12px;
@@ -110,26 +209,43 @@
   font-size: 12px;
   color: #64748b;
   font-weight: 500;
-  padding: 4px 8px;
+  padding: 6px 12px;
   background: #f1f5f9;
-  border-radius: 6px;
+  border-radius: 8px;
   text-align: center;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
 }
 
 .date-status.loading {
-  color: #d97706;
-  background: #fef3c7;
+  color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #bfdbfe;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 .date-status.success {
   color: #1e40af;
-  background: #dbeafe;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .date-status.error {
   color: #dc2626;
-  background: #fee2e2;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: #fca5a5;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
 }
 
 .filters {
@@ -1264,6 +1380,29 @@
   .date-selector {
     order: 2;
     min-width: auto;
+  }
+  
+  .date-controls {
+    gap: 4px;
+  }
+  
+  .date-nav-btn {
+    width: 32px;
+    height: 40px;
+  }
+  
+  .date-today-btn {
+    min-width: 50px;
+    padding: 0 8px;
+  }
+  
+  .date-btn-label {
+    font-size: 11px;
+  }
+  
+  .date-select-input {
+    padding: 10px 12px;
+    font-size: 14px;
   }
   
   .dashboard-row {
