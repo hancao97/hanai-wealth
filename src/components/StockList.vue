@@ -208,6 +208,12 @@
           
         </div>
         </div>
+        
+        <!-- 市场情绪波动曲线 -->
+        <MarketSentiment 
+          :sentimentData="marketSentiment"
+          :loading="false"
+        />
       </div>
     </Transition>
     
@@ -455,6 +461,7 @@ import { useStockDataStore } from '@/stores/stockData'
 import * as echarts from 'echarts'
 import AnimatedNumber from './AnimatedNumber.vue'
 import AnimatedCounter from './AnimatedCounter.vue'
+import MarketSentiment from './MarketSentiment.vue'
 
 const router = useRouter()
 const stockStore = useStockDataStore()
@@ -489,7 +496,8 @@ const {
   filters,
   industries,
   dividendStats,
-  marketOverview
+  marketOverview,
+  marketSentiment
 } = storeToRefs(stockStore)
 
 const {

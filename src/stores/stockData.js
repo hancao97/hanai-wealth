@@ -13,6 +13,8 @@ export const useStockDataStore = defineStore('stockData', () => {
   const loading = ref(false)
   const error = ref(null)
   const companiesInfo = ref({}) // 存储公司基础信息
+  const historicalData = ref({}) // 存储历史数据 { date: data[] }
+  const marketSentiment = ref([]) // 市场情绪数据
 
   // 筛选条件
   const filters = ref({
@@ -299,6 +301,11 @@ export const useStockDataStore = defineStore('stockData', () => {
       })
       
       applyFilters()
+      
+      // 加载历史数据并计算市场情绪（不阻塞主流程）
+      loadMarketSentimentData(selectedDate).catch(err => {
+        console.warn('加载市场情绪数据失败:', err)
+      })
     } catch (err) {
       error.value = `无法加载 ${selectedDate} 的数据: ${err.message}`
       allData.value = []
@@ -306,6 +313,75 @@ export const useStockDataStore = defineStore('stockData', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // 加载市场情绪数据（近20个交易日）
+  async function loadMarketSentimentData(selectedDate) {
+    try {
+      const currentIndex = availableDates.value.indexOf(selectedDate)
+      if (currentIndex === -1) return
+      
+      // 获取近20个交易日
+      const dates = availableDates.value.slice(currentIndex, currentIndex + 20).reverse()
+      
+      if (dates.length < 2) {
+        marketSentiment.value = []
+        return
+      }
+      
+      // 加载所有需要的历史数据
+      const sentimentData = []
+      
+      for (const date of dates) {
+        // 如果已经缓存，直接使用
+        if (!historicalData.value[date]) {
+          try {
+            const response = await axios.get(`./assets/${date}.json`)
+            historicalData.value[date] = response.data
+          } catch (err) {
+            console.warn(`无法加载 ${date} 的数据:`, err.message)
+            continue
+          }
+        }
+        
+        // 计算市场情绪指数
+        const data = historicalData.value[date]
+        if (data && data.length > 0) {
+          const sentiment = calculateMarketSentiment(data)
+          sentimentData.push({
+            date,
+            value: sentiment,
+            count: data.length
+          })
+        }
+      }
+      
+      marketSentiment.value = sentimentData
+    } catch (err) {
+      console.error('加载市场情绪数据失败:', err)
+      marketSentiment.value = []
+    }
+  }
+
+  // 计算市场情绪指数：(上涨 + 平盘) / 总数 * 100
+  function calculateMarketSentiment(data) {
+    if (!data || data.length === 0) return 0
+    
+    let upOrFlatCount = 0
+    let totalCount = 0
+    
+    data.forEach(item => {
+      const change = item.p_pct_change
+      if (change !== undefined && change !== null && !isNaN(change)) {
+        totalCount++
+        if (change >= 0) {
+          upOrFlatCount++
+        }
+      }
+    })
+    
+    if (totalCount === 0) return 0
+    return Math.round((upOrFlatCount / totalCount) * 100 * 100) / 100 // 保留两位小数
   }
 
   function applyFilters() {
@@ -440,6 +516,7 @@ export const useStockDataStore = defineStore('stockData', () => {
     loading,
     error,
     filters,
+    marketSentiment,
     
     // 计算属性
     totalPages,
@@ -452,6 +529,7 @@ export const useStockDataStore = defineStore('stockData', () => {
     // 方法
     loadDatesConfig,
     loadDataForDate,
+    loadMarketSentimentData,
     applyFilters,
     updateFilter,
     clearFilters,
