@@ -9,6 +9,49 @@ import { formatAsset } from '../utils/gurufocus.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * 带重试机制的请求函数
+ * @param {Function} requestFn - 执行请求的函数
+ * @param {number} maxRetries - 最大重试次数（默认5次）
+ * @param {number} retryDelay - 重试延迟（毫秒，默认2秒）
+ * @returns {Promise} 请求结果
+ */
+async function fetchWithRetry(requestFn, maxRetries = 5, retryDelay = 2000) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`执行请求 (第 ${attempt} 次尝试)...`);
+      const result = await requestFn();
+      if (attempt > 1) {
+        console.log(`✓ 重试成功！`);
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+      const errorMsg = error.response?.status 
+        ? `HTTP ${error.response.status} ${error.response.statusText}`
+        : error.message;
+      
+      if (attempt < maxRetries) {
+        // 还有重试机会
+        console.warn(`✗ 请求失败 (第 ${attempt}/${maxRetries} 次):`, errorMsg);
+        console.log(`等待 ${retryDelay / 1000} 秒后重试...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        // 指数退避：每次重试延迟时间翻倍
+        retryDelay *= 2;
+      } else {
+        // 已达到最大重试次数
+        console.error(`✗ 请求失败，已重试 ${maxRetries} 次:`, errorMsg);
+        throw error;
+      }
+    }
+  }
+  
+  // 所有重试都失败了
+  throw lastError;
+}
+
 async function fetchGuruFocusScreener() {
   const res = [];
   let page = 1;
@@ -18,7 +61,7 @@ async function fetchGuruFocusScreener() {
       'content-type': 'application/json',
       'accept': 'application/json, text/plain, */*',
     },
-    timeout: 30000
+    timeout: 300000
   };
   const body = {
     ...guruFocusFetchApiBasicParams,
@@ -27,13 +70,18 @@ async function fetchGuruFocusScreener() {
   }
   try {
     console.log(`Fetching start...`);
-    let resp = await axios.post(url, body, options);
+    
+    // 第一次请求使用重试机制
+    let resp = await fetchWithRetry(() => axios.post(url, body, options));
     res.push(...resp.data.data);
     page += 1;
+    
     while (resp.data.total > res.length) {
       console.log(`Fetched count ${res.length}... ${resp.data.total - res.length} left...`);
       body.page = page;
-      resp = await axios.post(url, body, options);
+      
+      // 分页请求也使用重试机制
+      resp = await fetchWithRetry(() => axios.post(url, body, options));
       res.push(...resp.data.data);
       page += 1;
     }
