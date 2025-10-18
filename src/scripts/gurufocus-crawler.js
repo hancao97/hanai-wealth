@@ -74,10 +74,49 @@ function saveData(data) {
   
   const fileName = getFileName();
   
-  // 只保存到public目录（Vue3版本）
+  // 分离公司基础信息
+  const companiesData = {};
+  const dailyData = [];
+  
+  processedData.forEach(item => {
+    const { business_descrpt, ...dailyItem } = item;
+    
+    // 保存公司基础信息（如果有business_descrpt）
+    if (business_descrpt && item.symbol) {
+      companiesData[item.symbol] = business_descrpt;
+    }
+    
+    // 保存每日数据（不包含business_descrpt）
+    dailyData.push(dailyItem);
+  });
+  
+  // 保存每日数据到public目录
   const publicPath = path.join(__dirname, '../../public/assets', fileName);
-  fs.writeFileSync(publicPath, JSON.stringify(processedData, null, 2), 'utf-8');
-  console.log(`Saved ${processedData.length} records to ${publicPath}`);
+  fs.writeFileSync(publicPath, JSON.stringify(dailyData, null, 2), 'utf-8');
+  console.log(`Saved ${dailyData.length} records to ${publicPath}`);
+  
+  // 更新companies.json（合并已有数据）
+  const companiesPath = path.join(__dirname, '../../public/companies.json');
+  let existingCompanies = {};
+  
+  // 读取已有的公司信息
+  if (fs.existsSync(companiesPath)) {
+    try {
+      existingCompanies = JSON.parse(fs.readFileSync(companiesPath, 'utf-8'));
+      console.log(`Loaded ${Object.keys(existingCompanies).length} existing companies`);
+    } catch (err) {
+      console.warn('Failed to read existing companies.json, will create new one');
+    }
+  }
+  
+  // 合并新旧公司信息（新数据覆盖旧数据）
+  const mergedCompanies = {
+    ...existingCompanies,
+    ...companiesData
+  };
+  
+  fs.writeFileSync(companiesPath, JSON.stringify(mergedCompanies, null, 2), 'utf-8');
+  console.log(`Updated companies.json with ${Object.keys(mergedCompanies).length} companies (${Object.keys(companiesData).length} updated)`);
 }
 
 function upateDates() {

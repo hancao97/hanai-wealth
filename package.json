@@ -11,6 +11,8 @@
     "fetch": "node ./src/scripts/gurufocus-crawler.js",
     "formate": "node ./src/scripts/formate.js",
     "remove-sma": "node ./src/scripts/remove-sma-keys.js",
+    "extract-companies": "node ./src/scripts/extract-companies.js",
+    "remove-business-descrpt": "node ./src/scripts/remove-business-descrpt.js",
     "fetch:build": "npm run fetch && npm run build",
     "serve:today": "npm run fetch && npm run dev",
     "deploy": "npm run build && gh-pages -d dist"

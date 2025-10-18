@@ -12,6 +12,7 @@ export const useStockDataStore = defineStore('stockData', () => {
   const pageSize = ref(100)
   const loading = ref(false)
   const error = ref(null)
+  const companiesInfo = ref({}) // 存储公司基础信息
 
   // 筛选条件
   const filters = ref({
@@ -230,10 +231,24 @@ export const useStockDataStore = defineStore('stockData', () => {
   }
 
   // 方法
+  async function loadCompaniesInfo() {
+    try {
+      const response = await axios.get('./companies.json')
+      companiesInfo.value = response.data
+      console.log(`加载了 ${Object.keys(companiesInfo.value).length} 个公司的基础信息`)
+    } catch (err) {
+      console.warn('无法加载公司基础信息:', err.message)
+      companiesInfo.value = {}
+    }
+  }
+
   async function loadDatesConfig() {
     try {
       loading.value = true
       error.value = null
+      
+      // 先加载公司基础信息
+      await loadCompaniesInfo()
       
       const response = await axios.get('./dates.json')
       availableDates.value = response.data.sort().reverse() // 最新日期在前
@@ -275,7 +290,13 @@ export const useStockDataStore = defineStore('stockData', () => {
       currentDate.value = selectedDate
       
       const response = await axios.get(`./assets/${selectedDate}.json`)
-      allData.value = response.data
+      const dailyData = response.data
+      
+      // 合并公司基础信息
+      allData.value = dailyData.map(item => {
+        const companyInfo = companiesInfo.value[item.symbol]
+        return companyInfo ? { ...item, business_descrpt: companyInfo } : item
+      })
       
       applyFilters()
     } catch (err) {

@@ -418,8 +418,20 @@ const loadStockData = async () => {
       throw new Error('缺少必要参数：stockid或date')
     }
 
-    const response = await axios.get(`./assets/${date}.json`)
-    const allData = response.data
+    // 并行加载每日数据和公司基础信息
+    const [dailyResponse, companiesResponse] = await Promise.all([
+      axios.get(`./assets/${date}.json`),
+      axios.get('./companies.json').catch(() => ({ data: {} })) // 如果加载失败，返回空对象
+    ])
+    
+    const dailyData = dailyResponse.data
+    const companiesInfo = companiesResponse.data
+    
+    // 合并公司基础信息
+    const allData = dailyData.map(item => {
+      const companyInfo = companiesInfo[item.symbol]
+      return companyInfo ? { ...item, business_descrpt: companyInfo } : item
+    })
     
     // 保存全部股票数据用于计算平均值
     allStocksData.value = allData
