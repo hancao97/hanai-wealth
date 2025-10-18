@@ -331,31 +331,25 @@ const getSentimentClass = (value) => {
 // 获取情绪图标
 const getSentimentIcon = (value) => {
   if (value >= 80) return '🌡️'
-  if (value >= 70) return '🔥'
   if (value >= 60) return '😊'
-  if (value >= 50) return '😐'
-  if (value >= 40) return '😟'
+  if (value >= 40) return '😐'
   if (value >= 20) return '😰'
   return '🥶'
 }
 
 // 获取情绪描述
 const getSentimentDescription = (value) => {
-  if (value >= 80) return '市场过热，注意风险'
-  if (value >= 70) return '市场情绪火热，多数个股上涨'
-  if (value >= 60) return '市场情绪良好，偏向乐观'
-  if (value >= 50) return '市场情绪中性，涨跌均衡'
-  if (value >= 40) return '市场情绪偏弱，谨慎为宜'
-  if (value >= 20) return '市场情绪低迷，观望为主'
-  return '市场冰点，极度悲观'
+  if (value >= 80) return '市场过热'
+  if (value >= 60) return '市场情绪良好'
+  if (value >= 40) return '市场情绪均衡'
+  if (value >= 20) return '市场情绪低迷'
+  return '市场冰点'
 }
 
 // 获取情绪颜色
 const getSentimentColor = (value) => {
   if (value >= 80) return '#dc2626'
-  if (value >= 70) return '#ef4444'
   if (value >= 60) return '#10b981'
-  if (value >= 50) return '#3b82f6'
   if (value >= 40) return '#f59e0b'
   if (value >= 20) return '#64748b'
   return '#6366f1'
