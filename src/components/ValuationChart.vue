@@ -43,7 +43,7 @@
           <div class="deviation-stats">
             <div class="stats-title">
               <span class="stats-icon">📊</span>
-              <span>历史偏离</span>
+              <span>近年价值偏离</span>
             </div>
             
             <div class="stat-item stat-max">
@@ -367,6 +367,10 @@ const initChart = (chartData) => {
   const valueMinus10Data = alignedMedpsData.map(item => [item[0], item[1] * 0.9])
   const valueMinus30Data = alignedMedpsData.map(item => [item[0], item[1] * 0.7])
   
+  // 获取当日日期（价格数据的最后一个日期）
+  const todayDate = priceData.length > 0 ? priceData[priceData.length - 1][0] : null
+  const todayTimestamp = todayDate ? new Date(todayDate).getTime() : null
+  
   const option = {
     backgroundColor: 'transparent',
     tooltip: {
@@ -407,7 +411,18 @@ const initChart = (chartData) => {
         const day = String(date.getDate()).padStart(2, '0')
         const formattedDate = `${year}-${month}-${day}`
         
+        // 判断是否为预估数据
+        const currentTimestamp = date.getTime()
+        const isEstimate = todayTimestamp && currentTimestamp > todayTimestamp
+        
         let result = `<div style="font-weight: 600; margin-bottom: 10px; font-size: 14px; color: #42a5f5;">${formattedDate}</div>`
+        
+        // 如果是预估数据，添加提示
+        if (isEstimate) {
+          result += `<div style="margin-bottom: 10px; padding: 6px 10px; background: rgba(124, 58, 237, 0.1); border-left: 3px solid #7c3aed; border-radius: 4px;">
+            <span style="color: #7c3aed; font-size: 12px; font-weight: 600;">⚠️ 预估数据，仅作参考</span>
+          </div>`
+        }
         
         // 查找股价和大师价值线的值
         let priceValue = null

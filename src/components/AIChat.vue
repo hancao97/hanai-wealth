@@ -110,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 
 const props = defineProps({
   stockData: {
@@ -138,9 +138,22 @@ const toggleChat = () => {
   showPulse.value = false
   
   if (isOpen.value) {
+    // 禁用页面滚动 - 使用多重方式确保生效
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.width = '100%'
+    document.body.style.top = `-${window.scrollY}px`
     nextTick(() => {
       inputTextarea.value?.focus()
     })
+  } else {
+    // 恢复页面滚动
+    const scrollY = document.body.style.top
+    document.body.style.overflow = ''
+    document.body.style.position = ''
+    document.body.style.width = ''
+    document.body.style.top = ''
+    window.scrollTo(0, parseInt(scrollY || '0') * -1)
   }
 }
 
@@ -279,6 +292,14 @@ onMounted(() => {
     showPulse.value = false
   }, 3000)
 })
+
+onUnmounted(() => {
+  // 组件卸载时恢复页面滚动
+  document.body.style.overflow = ''
+  document.body.style.position = ''
+  document.body.style.width = ''
+  document.body.style.top = ''
+})
 </script>
 
 <style scoped>
@@ -300,6 +321,8 @@ onMounted(() => {
   backdrop-filter: blur(4px);
   z-index: 9997;
   cursor: pointer;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 /* 遮罩层动画 */
@@ -583,7 +606,7 @@ onMounted(() => {
   position: fixed;
   top: 0;
   right: 0;
-  width: 480px;
+  width: 680px;
   height: 100vh;
   background: white;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
@@ -592,6 +615,7 @@ onMounted(() => {
   overflow: hidden;
   border-left: 1px solid rgba(148, 163, 184, 0.2);
   z-index: 9998;
+  overscroll-behavior: contain;
 }
 
 /* 抽屉头部 - 紧凑设计 */
