@@ -321,23 +321,15 @@ const initChart = (chartData) => {
   
   // 数据对齐：为价值线插值，使其与价格线的每个日期对齐
   const alignedMedpsData = alignValueDataToPrice(medpsData, priceData)
- 
-  console.log('chartData', medpsData, priceData)
- 
-  console.log('alignedMedpsData', alignedMedpsData,priceData)
   
   // 获取最新的价值和价格
   currentValue.value = chartData.iv?.toFixed(2) ?? '--';
   if (priceData.length > 0) {
     currentPrice.value = priceData[priceData.length - 1][1].toFixed(2)
   }
- 
-  console.log('currentValue', currentPrice.value)
   
   // 计算历史偏离统计（使用对齐后的价值数据）
   const deviationStats = calculateDeviationStats(alignedMedpsData, priceData)
-  
-  console.log('deviationStats', deviationStats)
   
   if (deviationStats.max && deviationStats.max.date) {
     const date = deviationStats.max.date
@@ -548,8 +540,7 @@ const initChart = (chartData) => {
         name: '严重低估区',
         type: 'line',
         data: valueMinus30Data,
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         lineStyle: {
@@ -570,8 +561,7 @@ const initChart = (chartData) => {
           item[0],
           item[1] - valueMinus30Data[index][1]
         ]),
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         lineStyle: {
@@ -592,8 +582,7 @@ const initChart = (chartData) => {
           item[0],
           item[1] - valueMinus10Data[index][1]
         ]),
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         lineStyle: {
@@ -614,8 +603,7 @@ const initChart = (chartData) => {
           item[0],
           item[1] - alignedMedpsData[index][1]
         ]),
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         lineStyle: {
@@ -636,8 +624,7 @@ const initChart = (chartData) => {
           item[0],
           item[1] - valuePlus10Data[index][1]
         ]),
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         lineStyle: {
@@ -656,8 +643,7 @@ const initChart = (chartData) => {
         name: '价值线+30%',
         type: 'line',
         data: valuePlus30Data,
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         itemStyle: {
@@ -680,8 +666,7 @@ const initChart = (chartData) => {
         name: '价值线+10%',
         type: 'line',
         data: valuePlus10Data,
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         itemStyle: {
@@ -704,8 +689,7 @@ const initChart = (chartData) => {
         name: '大师价值线',
         type: 'line',
         data: alignedMedpsData,
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         itemStyle: {
@@ -731,8 +715,7 @@ const initChart = (chartData) => {
         name: '价值线-10%',
         type: 'line',
         data: valueMinus10Data,
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         itemStyle: {
@@ -755,8 +738,7 @@ const initChart = (chartData) => {
         name: '价值线-30%',
         type: 'line',
         data: valueMinus30Data,
-        smooth: true,
-        smoothMonotone: 'x',
+        smooth: false,
         showSymbol: false,
         symbol: 'none',
         itemStyle: {

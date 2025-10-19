@@ -164,14 +164,18 @@ const priceChange10yRank = computed(() => {
 const formatFCF = (value) => {
   if (value === null || value === undefined || isNaN(value) || value === 0) return 'N/A'
   
+  // 使用绝对值进行计算，最后再添加符号
+  const absValue = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  
   // 转换为亿元
-  const yi = value / 100000000
+  const yi = absValue / 100000000
   if (yi >= 10000) {
-    return `${(yi / 10000).toFixed(2)}万亿`
+    return `${sign}${(yi / 10000).toFixed(2)}万亿`
   } else if (yi >= 1) {
-    return `${yi.toFixed(2)}亿`
+    return `${sign}${yi.toFixed(2)}亿`
   } else {
-    return `${(value / 10000).toFixed(2)}万`
+    return `${sign}${(absValue / 10000).toFixed(2)}万`
   }
 }
 
