@@ -135,6 +135,7 @@
 
       <!-- 估值走势图表 -->
       <ValuationChart 
+        ref="valuationChartRef"
         :stock-data="stockData"
       />
 
@@ -217,7 +218,12 @@
     </div>
 
     <!-- AI问答助手 -->
-    <AIChat :stock-data="stockData" />
+    <AIChat 
+      :stock-data="stockData"
+      :valuation-chart-ref="valuationChartRef"
+      :all-stocks-data="allStocksData"
+      :current-date="props.date || route.query.date"
+    />
   </div>
 </template>
 
@@ -243,6 +249,7 @@ const allStocksData = ref([])
 const loading = ref(true)
 const error = ref(null)
 const radarChartRef = ref(null)
+const valuationChartRef = ref(null)
 const activeRatingIndex = ref(-1)
 let radarChart = null
 

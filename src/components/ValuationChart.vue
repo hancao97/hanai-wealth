@@ -120,6 +120,11 @@ const currentPrice = ref('--')
 const maxDeviation = ref({ percentage: '--', date: '--' })
 const minDeviation = ref({ percentage: '--', date: '--' })
 
+// 存储完整的图表数据，供父组件使用
+const chartDataStore = ref(null)
+const medpsDataStore = ref([])
+const priceDataStore = ref([])
+
 const statusText = computed(() => {
   if (!currentValue.value || currentValue.value === '--') return '--'
   const price = parseFloat(currentPrice.value)
@@ -318,6 +323,11 @@ const initChart = (chartData) => {
   // 准备数据
   const medpsData = chartData.medps || []
   const priceData = chartData.price || []
+  
+  // 存储数据供外部使用
+  chartDataStore.value = chartData
+  medpsDataStore.value = medpsData
+  priceDataStore.value = priceData
   
   // 数据对齐：为价值线插值，使其与价格线的每个日期对齐
   const alignedMedpsData = alignValueDataToPrice(medpsData, priceData)
@@ -842,6 +852,15 @@ onUnmounted(() => {
     chart.dispose()
   }
   window.removeEventListener('resize', handleResize)
+})
+
+// 暴露数据给父组件
+defineExpose({
+  currentPrice,
+  currentValue,
+  chartData: chartDataStore,
+  medpsData: medpsDataStore,
+  priceData: priceDataStore
 })
 </script>
 

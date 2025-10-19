@@ -116,6 +116,18 @@ const props = defineProps({
   stockData: {
     type: Object,
     default: null
+  },
+  valuationChartRef: {
+    type: Object,
+    default: null
+  },
+  allStocksData: {
+    type: Array,
+    default: () => []
+  },
+  currentDate: {
+    type: String,
+    default: ''
   }
 })
 
@@ -157,6 +169,375 @@ const toggleChat = () => {
   }
 }
 
+// ========== 数据处理辅助函数 ==========
+
+// 提取未来价值预估数据
+const extractFutureEstimates = () => {
+  if (!props.valuationChartRef || !props.currentDate) return []
+  
+  // 从 ref 中获取数据
+  // medpsData 和 priceData 是 ref，需要用 .value 访问
+  let medpsData = []
+  let priceData = []
+  
+  if (props.valuationChartRef?.medpsData) {
+    medpsData = props.valuationChartRef.medpsData
+  }
+  
+  if (props.valuationChartRef?.priceData) {
+    priceData = props.valuationChartRef.priceData
+  }
+  
+  
+  if (!medpsData.length || !priceData.length) return []
+  
+  // 获取当前日期（价格数据的最后一个日期）
+  const currentDateTimestamp = priceData.length > 0 
+    ? new Date(priceData[priceData.length - 1][0]).getTime()
+    : new Date(props.currentDate).getTime()
+  
+  // 筛选出未来的预估数据
+  const futureEstimates = medpsData
+    .filter(item => new Date(item[0]).getTime() > currentDateTimestamp)
+    .map(item => {
+      const date = new Date(item[0])
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      return {
+        date: dateStr,
+        value: item[1].toFixed(2)
+      }
+    })
+  
+  return futureEstimates
+}
+
+// 计算单个指标的行业位置
+const calculateMetricRanking = (fieldName, currentValue, higherIsBetter = true) => {
+  if (!props.allStocksData || !props.stockData || currentValue == null || isNaN(currentValue)) {
+    return null
+  }
+  
+  const industryName = props.stockData.industry
+  if (!industryName) return null
+  
+  // 筛选同行业的有效数据
+  const industryStocks = props.allStocksData.filter(stock => {
+    const value = stock[fieldName]
+    return stock.industry === industryName && 
+           value != null && 
+           !isNaN(value) && 
+           value > 0
+  })
+  
+  if (industryStocks.length === 0) return null
+  
+  // 计算行业平均值
+  const industryAvg = industryStocks.reduce((sum, stock) => sum + parseFloat(stock[fieldName]), 0) / industryStocks.length
+  
+  // 计算排名
+  const sortedStocks = [...industryStocks].sort((a, b) => {
+    return higherIsBetter 
+      ? parseFloat(b[fieldName]) - parseFloat(a[fieldName])
+      : parseFloat(a[fieldName]) - parseFloat(b[fieldName])
+  })
+  
+  const rank = sortedStocks.findIndex(stock => stock.stockid === props.stockData.stockid) + 1
+  const total = sortedStocks.length
+  const percentage = (rank / total * 100).toFixed(1)
+  
+  return {
+    rank,
+    total,
+    percentage,
+    industryAvg: industryAvg.toFixed(2),
+    isGood: parseFloat(percentage) <= 25,
+    isBad: parseFloat(percentage) >= 75
+  }
+}
+
+// 格式化股票完整信息
+const formatStockInfo = () => {
+  if (!props.stockData) return ''
+  
+  const stock = props.stockData
+  const date = props.currentDate
+  
+  let info = '<div class="analysis-section">'
+  info += '<div class="analysis-title">📊 股票详细信息</div>'
+  
+  // 基础信息
+  info += '<div class="analysis-subsection">'
+  info += '<div class="analysis-subtitle">🏢 基础信息</div>'
+  info += '<div class="analysis-data-grid">'
+  info += `<div class="analysis-item"><span class="label">公司名称：</span><span class="value highlight">${stock.company || 'N/A'}</span></div>`
+  info += `<div class="analysis-item"><span class="label">交易代码：</span><span class="value">${stock.exchange_ || ''}:${stock.symbol || 'N/A'}</span></div>`
+  info += `<div class="analysis-item"><span class="label">所属板块：</span><span class="value">${stock.board || detectStockBoard(stock.symbol)}</span></div>`
+  info += `<div class="analysis-item"><span class="label">所属行业：</span><span class="value">${stock.industry || 'N/A'}</span></div>`
+  info += `<div class="analysis-item"><span class="label">所属板组：</span><span class="value">${stock.group || 'N/A'}</span></div>`
+  info += `<div class="analysis-item"><span class="label">总市值：</span><span class="value highlight">${formatMarketCap(stock.mktcap_norm_currency)}</span></div>`
+  info += '</div></div>'
+  
+  // 估值信息 - 只显示两个区间卡片
+  const pettm = stock.pettm && !isNaN(stock.pettm) && stock.pettm > 0 ? parseFloat(stock.pettm) : null
+  const peLow = stock.pettmlow && !isNaN(stock.pettmlow) && stock.pettmlow > 0 ? parseFloat(stock.pettmlow) : null
+  const peHigh = stock.pettmhigh && !isNaN(stock.pettmhigh) && stock.pettmhigh > 0 ? parseFloat(stock.pettmhigh) : null
+  
+  // 处理带 ¥ 符号的价格字符串
+  const parsePriceValue = (value) => {
+    if (!value) return null
+    const numStr = String(value).replace(/[¥,]/g, '').trim()
+    const num = parseFloat(numStr)
+    return !isNaN(num) ? num : null
+  }
+  
+  const priceLow = parsePriceValue(stock.price10ylow)
+  const priceHigh = parsePriceValue(stock.price10yhigh)
+  const currentPrice = parsePriceValue(stock.price)
+  
+  // 至少有一个区间数据时显示
+  const hasPeRange = pettm && peLow && peHigh && peHigh > peLow
+  const hasPriceRange = currentPrice && priceLow && priceHigh && priceHigh > priceLow
+  console.log('hasPriceRange:', stock, currentPrice, priceLow, priceHigh, priceHigh > priceLow)
+  
+  if (hasPeRange || hasPriceRange) {
+    info += '<div class="analysis-subsection">'
+    info += '<div class="analysis-subtitle">💹 估值区间</div>'
+    info += '<div class="valuation-ranges">'
+    
+    // 10年PE区间卡片（使用历史日期的数据）
+    if (hasPeRange) {
+      const pePosition = ((pettm - peLow) / (peHigh - peLow) * 100).toFixed(1)
+      info += `<div class="range-card">`
+      info += `<div class="range-card-title">10年PE区间（${date}）</div>`
+      info += `<div class="range-card-current">${date} <span class="range-value">${pettm.toFixed(2)}</span></div>`
+      info += `<div class="range-bar-container">`
+      info += `<div class="range-bar">`
+      info += `<div class="range-bar-fill" style="width: ${pePosition}%"></div>`
+      info += `<div class="range-marker" style="left: ${pePosition}%"></div>`
+      info += `</div>`
+      info += `</div>`
+      info += `<div class="range-labels">`
+      info += `<span class="range-label-low">最低: ${peLow.toFixed(2)}</span>`
+      info += `<span class="range-label-pos">${pePosition}%</span>`
+      info += `<span class="range-label-high">最高: ${peHigh.toFixed(2)}</span>`
+      info += `</div>`
+      info += `</div>`
+    }
+    
+    // 10年股价区间卡片（使用历史日期的数据）
+    if (hasPriceRange) {
+      const pricePosition = ((currentPrice - priceLow) / (priceHigh - priceLow) * 100).toFixed(1)
+      info += `<div class="range-card">`
+      info += `<div class="range-card-title">10年股价区间（${date}）</div>`
+      info += `<div class="range-card-current">${date} <span class="range-value">¥${currentPrice.toFixed(2)}</span></div>`
+      info += `<div class="range-bar-container">`
+      info += `<div class="range-bar">`
+      info += `<div class="range-bar-fill" style="width: ${pricePosition}%"></div>`
+      info += `<div class="range-marker" style="left: ${pricePosition}%"></div>`
+      info += `</div>`
+      info += `</div>`
+      info += `<div class="range-labels">`
+      info += `<span class="range-label-low">最低: ¥${priceLow.toFixed(2)}</span>`
+      info += `<span class="range-label-pos">${pricePosition}%</span>`
+      info += `<span class="range-label-high">最高: ¥${priceHigh.toFixed(2)}</span>`
+      info += `</div>`
+      info += `</div>`
+    }
+    
+    info += '</div></div>'
+  }
+  
+  // 五维评级（只在有评分数据时显示）
+  const hasRatings = stock.rank_gf_value || stock.rank_growth || stock.rank_momentum || 
+                     stock.rank_profitability || stock.rank_balancesheet || stock.gf_score
+  
+  if (hasRatings) {
+    info += '<div class="analysis-subsection">'
+    info += '<div class="analysis-subtitle">⭐ 五维评级</div>'
+    info += '<div class="analysis-data-grid">'
+    
+    if (stock.rank_gf_value) {
+      info += `<div class="analysis-item"><span class="label">价值评级：</span><span class="value rating">${getRankValue(stock.rank_gf_value)}/10</span></div>`
+    }
+    if (stock.rank_growth) {
+      info += `<div class="analysis-item"><span class="label">成长能力：</span><span class="value rating">${getRankValue(stock.rank_growth)}/10</span></div>`
+    }
+    if (stock.rank_momentum) {
+      info += `<div class="analysis-item"><span class="label">价值动量：</span><span class="value rating">${getRankValue(stock.rank_momentum)}/10</span></div>`
+    }
+    if (stock.rank_profitability) {
+      info += `<div class="analysis-item"><span class="label">盈利能力：</span><span class="value rating">${getRankValue(stock.rank_profitability)}/10</span></div>`
+    }
+    if (stock.rank_balancesheet) {
+      info += `<div class="analysis-item"><span class="label">财务实力：</span><span class="value rating">${getRankValue(stock.rank_balancesheet)}/10</span></div>`
+    }
+    
+    const gfScore = stock.gf_score && stock.gf_score > 0 ? Math.round(stock.gf_score) : 0
+    if (gfScore > 0) {
+      info += `<div class="analysis-item full-width"><span class="label">综合评分：</span><span class="value highlight master-score">${gfScore}/100</span></div>`
+    }
+    
+    info += '</div></div>'
+  }
+  
+  // 成长指标（只在有数据时显示）
+  const hasFCF = stock.total_free_cash_flow !== null && stock.total_free_cash_flow !== undefined && 
+                 !isNaN(stock.total_free_cash_flow) && stock.total_free_cash_flow > 0
+  const hasNetIncomeGrowth = stock.total_netincome_growth_10y !== null && 
+                              stock.total_netincome_growth_10y !== undefined && 
+                              !isNaN(stock.total_netincome_growth_10y)
+  const hasPriceChange10y = stock.pchange_10y !== null && 
+                            stock.pchange_10y !== undefined && 
+                            !isNaN(stock.pchange_10y)
+  
+  if (hasFCF || hasNetIncomeGrowth || hasPriceChange10y) {
+    info += '<div class="analysis-subsection">'
+    info += '<div class="analysis-subtitle">🚀 成长指标（历史数据 ' + date + '）</div>'
+    info += '<div class="growth-metrics-grid">'
+    
+    if (hasFCF) {
+      const fcfValue = formatFCF(stock.total_free_cash_flow)
+      info += `<div class="growth-metric-card">`
+      info += `<div class="growth-metric-icon">💰</div>`
+      info += `<div class="growth-metric-content">`
+      info += `<div class="growth-metric-label">自由现金流</div>`
+      info += `<div class="growth-metric-value">${fcfValue}</div>`
+      info += `</div>`
+      info += `</div>`
+    }
+    
+    if (hasNetIncomeGrowth) {
+      const growthValue = stock.total_netincome_growth_10y.toFixed(2) + '%'
+      const growthClass = stock.total_netincome_growth_10y >= 0 ? 'positive' : 'negative'
+      info += `<div class="growth-metric-card">`
+      info += `<div class="growth-metric-icon">📈</div>`
+      info += `<div class="growth-metric-content">`
+      info += `<div class="growth-metric-label">10年净利润增长</div>`
+      info += `<div class="growth-metric-value ${growthClass}">${growthValue}</div>`
+      info += `</div>`
+      info += `</div>`
+    }
+    
+    if (hasPriceChange10y) {
+      const returnValue = stock.pchange_10y.toFixed(2) + '%'
+      const returnClass = stock.pchange_10y >= 0 ? 'positive' : 'negative'
+      info += `<div class="growth-metric-card">`
+      info += `<div class="growth-metric-icon">🎯</div>`
+      info += `<div class="growth-metric-content">`
+      info += `<div class="growth-metric-label">10年年化回报</div>`
+      info += `<div class="growth-metric-value ${returnClass}">${returnValue}</div>`
+      info += `</div>`
+      info += `</div>`
+    }
+    
+    info += '</div></div>'
+  }
+  
+  // 关键指标及行业位置（只显示有数据的指标）
+  const metricsToShow = []
+  
+  if (stock.yield != null && !isNaN(stock.yield) && stock.yield > 0) {
+    metricsToShow.push({ name: '股息率', value: stock.yield, unit: '%', field: 'yield', higherIsBetter: true })
+  }
+  if (stock.grossmargin != null && !isNaN(stock.grossmargin) && stock.grossmargin > 0) {
+    metricsToShow.push({ name: '毛利率', value: stock.grossmargin, unit: '%', field: 'grossmargin', higherIsBetter: true })
+  }
+  if (stock.net_margain != null && !isNaN(stock.net_margain) && stock.net_margain > 0) {
+    metricsToShow.push({ name: '净利率', value: stock.net_margain, unit: '%', field: 'net_margain', higherIsBetter: true })
+  }
+  if (stock.roe != null && !isNaN(stock.roe) && stock.roe > 0) {
+    metricsToShow.push({ name: 'ROE', value: stock.roe, unit: '%', field: 'roe', higherIsBetter: true })
+  }
+  if (stock.pettm != null && !isNaN(stock.pettm) && stock.pettm > 0) {
+    metricsToShow.push({ name: '市盈率(TTM)', value: stock.pettm, unit: '', field: 'pettm', higherIsBetter: false })
+  }
+  if (stock.pb != null && !isNaN(stock.pb) && stock.pb > 0) {
+    metricsToShow.push({ name: '市净率(PB)', value: stock.pb, unit: '', field: 'pb', higherIsBetter: false })
+  }
+  
+  // 只在有指标数据时显示
+  if (metricsToShow.length > 0) {
+    info += '<div class="analysis-subsection">'
+    info += '<div class="analysis-subtitle">📈 关键指标及行业位置</div>'
+    info += '<div class="analysis-metrics-list">'
+    
+    metricsToShow.forEach(metric => {
+      const ranking = calculateMetricRanking(metric.field, metric.value, metric.higherIsBetter)
+      info += formatMetricWithRanking(metric.name, metric.value, metric.unit, ranking)
+    })
+    
+    info += '</div></div>'
+  }
+  info += '</div>'
+  
+  return info
+}
+
+// 格式化指标及排名
+const formatMetricWithRanking = (name, value, unit, ranking) => {
+  let html = '<div class="analysis-metric-item">'
+  html += `<div class="metric-name">${name}</div>`
+  html += `<div class="metric-value">${parseFloat(value).toFixed(2)}${unit}</div>`
+  
+  if (ranking) {
+    const rankClass = ranking.isGood ? 'ranking-good' : (ranking.isBad ? 'ranking-bad' : 'ranking-normal')
+    html += `<div class="metric-ranking ${rankClass}">`
+    html += `<span class="rank-text">行业排名 ${ranking.rank}/${ranking.total}</span>`
+    html += `<span class="rank-percent">(前${ranking.percentage}%)</span>`
+    html += `</div>`
+    html += `<div class="metric-avg">行业平均: ${ranking.industryAvg}${unit}</div>`
+  } else {
+    html += '<div class="metric-ranking">暂无行业数据</div>'
+  }
+  
+  html += '</div>'
+  return html
+}
+
+// 辅助函数
+const detectStockBoard = (symbol) => {
+  if (!symbol || typeof symbol !== 'string') return '主板'
+  const code = symbol.trim()
+  if (/^(000|001|002|003|600|601|603|605)/.test(code)) return '主板'
+  if (/^(300|301)/.test(code)) return '创业板'
+  if (/^688/.test(code)) return '科创板'
+  if (/^(43|83|87|92)/.test(code)) return '北证'
+  return '主板'
+}
+
+const formatMarketCap = (value) => {
+  if (!value || isNaN(value)) return 'N/A'
+  if (value >= 1e12) return (value / 1e12).toFixed(2) + '万亿'
+  if (value >= 1e8) return (value / 1e8).toFixed(2) + '亿'
+  if (value >= 1e4) return (value / 1e4).toFixed(2) + '万'
+  return value.toFixed(2)
+}
+
+const getRankValue = (rankValue) => {
+  const rankValueNum = parseFloat(rankValue)
+  if (isNaN(rankValueNum)) return 0
+  return rankValueNum.toFixed(1)
+}
+
+// 格式化自由现金流
+const formatFCF = (value) => {
+  if (value === null || value === undefined || isNaN(value) || value === 0) return 'N/A'
+  
+  // 使用绝对值进行计算，最后再添加符号
+  const absValue = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  
+  // 转换为亿元
+  const yi = absValue / 100000000
+  if (yi >= 10000) {
+    return `${sign}${(yi / 10000).toFixed(2)}万亿`
+  } else if (yi >= 1) {
+    return `${sign}${yi.toFixed(2)}亿`
+  } else {
+    return `${sign}${(absValue / 10000).toFixed(2)}万`
+  }
+}
+
 // 发送消息
 const handleSend = () => {
   if (!inputMessage.value.trim() || isLoading.value) return
@@ -180,14 +561,8 @@ const handleSend = () => {
 }
 
 // 价值分析
-const startValueAnalysis = () => {
+const startValueAnalysis = async () => {
   if (isLoading.value) return
-  
-  const analysisQuestion = `请对 ${props.stockData?.company || '该股票'} 进行全面的价值分析，包括：
-1. 财务状况评估
-2. 估值水平分析
-3. 投资价值判断
-4. 风险提示`
   
   const userMessage = {
     role: 'user',
@@ -202,8 +577,284 @@ const startValueAnalysis = () => {
     scrollToBottom()
   })
   
-  // 模拟AI回复
-  simulateAIResponse(analysisQuestion)
+  // 生成分析内容
+  await displayValueAnalysis()
+}
+
+// 打字机效果显示文本
+const typeWriter = async (messageIndex, fullContent, speed = 30) => {
+  let currentText = ''
+  
+  for (let i = 0; i < fullContent.length; i++) {
+    currentText += fullContent[i]
+    messages.value[messageIndex].content = currentText
+    
+    // 跳过 HTML 标签内部，加快速度
+    if (fullContent[i] === '<') {
+      while (i < fullContent.length && fullContent[i] !== '>') {
+        i++
+        currentText += fullContent[i]
+      }
+      messages.value[messageIndex].content = currentText
+    } else {
+      // 在可见文字处添加延迟
+      await new Promise(resolve => setTimeout(resolve, speed))
+    }
+    
+    // 每隔一段自动滚动
+    if (i % 50 === 0) {
+      scrollToBottom()
+    }
+  }
+  
+  scrollToBottom()
+}
+
+// 显示价值分析内容（分段流式+打字机效果）
+const displayValueAnalysis = async () => {
+  if (!props.stockData) {
+    messages.value.push({
+      role: 'assistant',
+      content: '抱歉，当前没有股票数据可供分析。',
+      timestamp: getCurrentTime()
+    })
+    return
+  }
+  
+  isLoading.value = true
+  
+  // 等待图表数据加载（最多等待5秒）
+  let waitCount = 0
+  const maxWait = 10
+  
+  while (waitCount < maxWait) {
+    if (!props.valuationChartRef) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      waitCount++
+      continue
+    }
+    
+    const currentPrice = props.valuationChartRef.currentPrice
+    const hasData = currentPrice && currentPrice !== '--'
+    
+    if (hasData) {
+      console.log('✅ 图表数据已加载，等待了', waitCount * 500, 'ms')
+      break
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500))
+    waitCount++
+  }
+  
+  if (waitCount >= maxWait) {
+    console.warn('⚠️ 图表数据加载超时，将使用基础数据')
+  }
+  
+  try {
+    const companyName = props.stockData.company || '该公司'
+    
+    // 开场白：可爱的欢迎语
+    await new Promise(resolve => setTimeout(resolve, 200))
+    const welcomeMsg = `<div class="ai-welcome-message">✨ 嗨！请稍等片刻，让 HANAI 对【${companyName}】进行一番深入了解～ 🔍💫</div>`
+    const welcomeIndex = messages.value.length
+    messages.value.push({
+      role: 'assistant',
+      content: '',
+      timestamp: getCurrentTime()
+    })
+    await nextTick()
+    await typeWriter(welcomeIndex, welcomeMsg, 25)
+    
+    // 第一段：当前股价信息（打字机效果）
+    await new Promise(resolve => setTimeout(resolve, 800))
+    const priceIntro = `<div class="ai-transition-text">📊 首先，让我们看看股价数据～</div>`
+    const priceInfo = priceIntro + generatePriceInfo()
+    const priceIndex = messages.value.length
+    messages.value.push({
+      role: 'assistant',
+      content: '',
+      timestamp: getCurrentTime()
+    })
+    await nextTick()
+    await typeWriter(priceIndex, priceInfo, 20)
+    
+    // 第二段：股票详细信息（打字机效果）
+    await new Promise(resolve => setTimeout(resolve, 600))
+    const stockIntro = `<div class="ai-transition-text">🎯 接下来，深入了解一下公司的详细信息吧～</div>`
+    const stockInfo = stockIntro + formatStockInfo()
+    const stockIndex = messages.value.length
+    messages.value.push({
+      role: 'assistant',
+      content: '',
+      timestamp: getCurrentTime()
+    })
+    await nextTick()
+    await typeWriter(stockIndex, stockInfo, 15)
+    
+    // 第三段：价值大师网数据（打字机效果）
+    await new Promise(resolve => setTimeout(resolve, 600))
+    const valueIntro = `<div class="ai-transition-text">💎 最后，来看看专业的估值评估数据～</div>`
+    const valueInfo = valueIntro + generateValueInfo()
+    const valueIndex = messages.value.length
+    messages.value.push({
+      role: 'assistant',
+      content: '',
+      timestamp: getCurrentTime()
+    })
+    await nextTick()
+    await typeWriter(valueIndex, valueInfo, 20)
+    
+    // 结束语：可爱的总结
+    await new Promise(resolve => setTimeout(resolve, 800))
+    const endingMsg = `<div class="ai-ending-message">🎉 分析完成！希望这些数据能帮助你更好地了解【${companyName}】～ 如果有任何疑问，随时问我哦！💪✨</div>`
+    const endingIndex = messages.value.length
+    messages.value.push({
+      role: 'assistant',
+      content: '',
+      timestamp: getCurrentTime()
+    })
+    await nextTick()
+    await typeWriter(endingIndex, endingMsg, 25)
+    
+  } catch (error) {
+    console.error('生成分析内容失败:', error)
+    messages.value.push({
+      role: 'assistant',
+      content: '生成分析内容时出现错误，请稍后再试。',
+      timestamp: getCurrentTime()
+    })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 生成股价信息（第一段）
+const generatePriceInfo = () => {
+  const stock = props.stockData
+  const companyName = stock.company || 'N/A'
+  const date = props.currentDate
+  
+  // 处理带 ¥ 符号的价格
+  const parsePriceValue = (value) => {
+    if (!value || value === '--') return null
+    const numStr = String(value).replace(/[¥,]/g, '').trim()
+    const num = parseFloat(numStr)
+    return !isNaN(num) ? num : null
+  }
+  
+  // 从 ValuationChart ref 获取当日最新股价
+  let todayPrice = null
+  let isFromChart = false
+  if (props.valuationChartRef?.currentPrice) {
+    const priceVal = props.valuationChartRef.currentPrice
+    if (priceVal !== '--') {
+      todayPrice = parsePriceValue(priceVal)
+      isFromChart = true
+    }
+  }
+  
+  // 获取历史日期的股价
+  const historicalPrice = parsePriceValue(stock.price)
+  
+  let info = '<div class="analysis-section">'
+  info += '<div class="analysis-title">💰 股价信息</div>'
+  
+  // 显示当日最新股价（如果有）
+  if (isFromChart && todayPrice !== null) {
+    const today = new Date().toISOString().split('T')[0]
+    info += `<div class="analysis-highlight-box">`
+    info += `<div class="highlight-text">【${companyName}】最新股价（${today}）：<span class="price-highlight">¥${todayPrice.toFixed(2)}</span></div>`
+    info += `</div>`
+  }
+
+  
+  // 股价区间信息（使用历史日期数据）
+  let showPriceRange = false
+  let priceRangeInfo = ''
+  
+  if (historicalPrice !== null) {
+    const low = parsePriceValue(stock.price10ylow)
+    const high = parsePriceValue(stock.price10yhigh)
+    
+    priceRangeInfo += `<div class="analysis-detail">`
+    priceRangeInfo += `截止 <span class="date-highlight">${date}</span>`
+    
+    if (low !== null && high !== null && high > low) {
+      const position = ((historicalPrice - low) / (high - low) * 100).toFixed(1)
+      priceRangeInfo += `，该日股价（¥${historicalPrice}）位于10年区间的 <span class="percent-highlight">${position}%</span> 位置`
+      priceRangeInfo += `<br/>（10年历史区间：¥${low.toFixed(2)} - ¥${high.toFixed(2)}）`
+    }
+    
+    priceRangeInfo += `</div>`
+    showPriceRange = true
+  }
+  
+  if (showPriceRange) {
+    info += priceRangeInfo
+  }
+  
+  info += '</div>'
+  return info
+}
+
+// 生成价值信息（第三段）
+const generateValueInfo = () => {
+  const stock = props.stockData
+  const companyName = stock.company || 'N/A'
+  
+  // 处理带 ¥ 符号的价格
+  const parsePriceValue = (value) => {
+    if (!value || value === '--') return null
+    const numStr = String(value).replace(/[¥,]/g, '').trim()
+    const num = parseFloat(numStr)
+    return !isNaN(num) ? num : null
+  }
+  
+  // 从 ValuationChart ref 获取当日最新价值（这是从图表来的当日数据）
+  let todayValue = null
+  if (props.valuationChartRef?.currentValue) {
+    const valueVal = props.valuationChartRef.currentValue
+    todayValue = parsePriceValue(valueVal)
+  }
+  
+  let info = '<div class="analysis-section">'
+  info += '<div class="analysis-title">💎 估值评估数据</div>'
+  
+  // 显示当日最新估值（来自价值曲线图）
+  if (todayValue !== null) {
+    const today = new Date().toISOString().split('T')[0]
+    info += `<div class="analysis-highlight-box">`
+    info += `<div class="highlight-text">【${companyName}】当日最新估值（${today}）：<span class="value-highlight">¥${todayValue.toFixed(2)}</span></div>`
+    info += `</div>`
+  } else {
+    info += `<div class="analysis-highlight-box">`
+    info += `<div class="highlight-text">【${companyName}】当前暂无估值数据</div>`
+    info += `</div>`
+  }
+  
+  // 未来价值预估
+  const futureEstimates = extractFutureEstimates()
+  
+  if (futureEstimates.length > 0) {
+    info += '<div class="analysis-subsection">'
+    info += '<div class="analysis-subtitle">📈 未来价值预估 <span class="estimate-note">⚠️ 预估数据，仅作参考</span></div>'
+    info += '<div class="future-estimates-list">'
+    
+    futureEstimates.forEach(estimate => {
+      info += `<div class="future-estimate-item">`
+      info += `<span class="estimate-date">• ${estimate.date}</span>`
+      info += `<span class="estimate-text"> 的预估价值为 </span>`
+      info += `<span class="estimate-value">¥${estimate.value}</span>`
+      info += `</div>`
+    })
+    
+    info += '</div></div>'
+  } else {
+    info += '<div class="analysis-detail">暂无未来价值预估数据</div>'
+  }
+  
+  info += '</div>'
+  return info
 }
 
 // 模拟AI响应
@@ -606,7 +1257,8 @@ onUnmounted(() => {
   position: fixed;
   top: 0;
   right: 0;
-  width: 680px;
+  width: 850px;
+  max-width: 90vw;
   height: 100vh;
   background: white;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
@@ -1389,6 +2041,551 @@ onUnmounted(() => {
   
   .fab-content .fab-icon {
     font-size: 22px;
+  }
+}
+
+/* ========== 价值分析专属样式 ========== */
+
+/* AI 欢迎语样式 */
+.message-content :deep(.ai-welcome-message) {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  border-radius: 12px;
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  font-size: 15px;
+  font-weight: 600;
+  color: #667eea;
+  text-align: center;
+  margin: 8px 0 16px 0;
+  animation: welcomePulse 2s ease-in-out infinite;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+@keyframes welcomePulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+  }
+}
+
+/* AI 过渡文字样式 */
+.message-content :deep(.ai-transition-text) {
+  padding: 10px 16px;
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0.05));
+  border-left: 4px solid #fbbf24;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  margin: 16px 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* AI 结束语样式 */
+.message-content :deep(.ai-ending-message) {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+  border-radius: 12px;
+  border: 2px solid rgba(16, 185, 129, 0.3);
+  font-size: 15px;
+  font-weight: 600;
+  color: #059669;
+  text-align: center;
+  margin: 16px 0 8px 0;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+  animation: endingSlideIn 0.6s ease-out;
+}
+
+@keyframes endingSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 分析内容段落容器 */
+.message-content :deep(.analysis-section) {
+  margin: 10px 0;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.15);
+}
+
+/* 段落标题 */
+.message-content :deep(.analysis-title) {
+  font-size: 16px;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 子段落 */
+.message-content :deep(.analysis-subsection) {
+  margin: 12px 0;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.message-content :deep(.analysis-subtitle) {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 高亮盒子 */
+.message-content :deep(.analysis-highlight-box) {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(147, 51, 234, 0.08));
+  padding: 12px;
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+  margin: 10px 0;
+}
+
+.message-content :deep(.highlight-text) {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #1e293b;
+}
+
+/* 关键数据高亮 */
+.message-content :deep(.price-highlight),
+.message-content :deep(.value-highlight) {
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding: 0 4px;
+}
+
+.message-content :deep(.date-highlight) {
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.message-content :deep(.percent-highlight) {
+  font-weight: 700;
+  color: #10b981;
+}
+
+.message-content :deep(.analysis-detail) {
+  margin: 8px 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+/* 数据网格 */
+.message-content :deep(.analysis-data-grid) {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.message-content :deep(.analysis-item) {
+  padding: 8px 10px;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 6px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  transition: all 0.3s ease;
+}
+
+.message-content :deep(.analysis-item:hover) {
+  background: white;
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.message-content :deep(.analysis-item.full-width) {
+  grid-column: 1 / -1;
+}
+
+.message-content :deep(.analysis-item.span-2) {
+  grid-column: span 2;
+}
+
+.message-content :deep(.analysis-item .label) {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.message-content :deep(.analysis-item .value) {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.message-content :deep(.analysis-item .value.highlight) {
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.message-content :deep(.analysis-item .value.rating) {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.message-content :deep(.analysis-item .value.master-score) {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+/* 指标列表 */
+.message-content :deep(.analysis-metrics-list) {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.message-content :deep(.analysis-metric-item) {
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.3s ease;
+}
+
+.message-content :deep(.analysis-metric-item:hover) {
+  background: white;
+  border-color: rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  transform: translateX(4px);
+}
+
+.message-content :deep(.metric-name) {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.message-content :deep(.metric-value) {
+  font-size: 16px;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 5px;
+}
+
+.message-content :deep(.metric-ranking) {
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  margin-bottom: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-content :deep(.metric-ranking.ranking-good) {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15));
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #059669;
+}
+
+.message-content :deep(.metric-ranking.ranking-bad) {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.15));
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+.message-content :deep(.metric-ranking.ranking-normal) {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1));
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #2563eb;
+}
+
+.message-content :deep(.rank-text) {
+  font-weight: 600;
+}
+
+.message-content :deep(.rank-percent) {
+  opacity: 0.8;
+  font-size: 11px;
+}
+
+.message-content :deep(.metric-avg) {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+/* 未来预估列表 */
+.message-content :deep(.future-estimates-list) {
+  margin: 10px 0;
+}
+
+.message-content :deep(.future-estimate-item) {
+  padding: 10px 12px;
+  margin: 6px 0;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.05), rgba(147, 51, 234, 0.05));
+  border-left: 3px solid #7c3aed;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.message-content :deep(.future-estimate-item:hover) {
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.1), rgba(147, 51, 234, 0.1));
+  transform: translateX(6px);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+
+.message-content :deep(.estimate-date) {
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.message-content :deep(.estimate-text) {
+  color: #64748b;
+}
+
+.message-content :deep(.estimate-value) {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 14px;
+}
+
+.message-content :deep(.estimate-note) {
+  font-size: 11px;
+  color: #f59e0b;
+  font-weight: 500;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: rgba(251, 191, 36, 0.1);
+  border-radius: 4px;
+}
+
+/* 区间卡片样式 */
+.message-content :deep(.valuation-ranges) {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.message-content :deep(.range-card) {
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+  border-radius: 10px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  transition: all 0.3s ease;
+}
+
+.message-content :deep(.range-card:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.message-content :deep(.range-card-title) {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.message-content :deep(.range-card-current) {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.message-content :deep(.range-value) {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-left: 6px;
+}
+
+.message-content :deep(.range-bar-container) {
+  margin: 12px 0;
+}
+
+.message-content :deep(.range-bar) {
+  position: relative;
+  height: 8px;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, rgba(251, 191, 36, 0.15) 50%, rgba(239, 68, 68, 0.15) 100%);
+  border-radius: 4px;
+  overflow: visible;
+}
+
+.message-content :deep(.range-bar-fill) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #ef4444 100%);
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.message-content :deep(.range-marker) {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+  z-index: 2;
+}
+
+.message-content :deep(.range-labels) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.message-content :deep(.range-label-low),
+.message-content :deep(.range-label-high) {
+  font-weight: 500;
+}
+
+.message-content :deep(.range-label-pos) {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 11px;
+}
+
+/* 成长指标卡片样式 */
+.message-content :deep(.growth-metrics-grid) {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.message-content :deep(.growth-metric-card) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.4) 0%, rgba(253, 230, 138, 0.4) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.message-content :deep(.growth-metric-card:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+.message-content :deep(.growth-metric-icon) {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.message-content :deep(.growth-metric-content) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message-content :deep(.growth-metric-label) {
+  font-size: 11px;
+  color: #78350f;
+  font-weight: 500;
+}
+
+.message-content :deep(.growth-metric-value) {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.message-content :deep(.growth-metric-value.positive) {
+  color: #10b981;
+}
+
+.message-content :deep(.growth-metric-value.negative) {
+  color: #ef4444;
+}
+
+/* 响应式 - 移动端适配 */
+@media (max-width: 1200px) {
+  .message-content :deep(.analysis-data-grid) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .message-content :deep(.valuation-ranges) {
+    grid-template-columns: 1fr;
+  }
+  
+  .message-content :deep(.growth-metrics-grid) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .message-content :deep(.analysis-data-grid) {
+    grid-template-columns: 1fr;
+  }
+  
+  .message-content :deep(.analysis-metrics-list) {
+    grid-template-columns: 1fr;
+  }
+  
+  .message-content :deep(.analysis-section) {
+    padding: 10px;
+  }
+  
+  .message-content :deep(.analysis-subsection) {
+    padding: 8px;
+  }
+  
+  .message-content :deep(.price-highlight),
+  .message-content :deep(.value-highlight) {
+    font-size: 16px;
+  }
+  
+  .message-content :deep(.metric-value) {
+    font-size: 15px;
   }
 }
 </style>
