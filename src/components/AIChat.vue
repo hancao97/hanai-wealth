@@ -706,7 +706,7 @@ const displayValueAnalysis = async () => {
     
     // 结束语：可爱的总结
     await new Promise(resolve => setTimeout(resolve, 800))
-    const endingMsg = `<div class="ai-ending-message">🎉 分析完成！希望这些数据能帮助你更好地了解【${companyName}】～ 如果有任何疑问，随时问我哦！💪✨</div>`
+    const endingMsg = `<div class="ai-ending-message">🎉 喔，我现在对【${companyName}】有了一个初步的了解，接下来我将开始正式的工作啦！💪✨</div>`
     const endingIndex = messages.value.length
     messages.value.push({
       role: 'assistant',
