@@ -1,14 +1,30 @@
 <template>
   <div class="valuation-chart-card">
     <div v-if="loading" class="chart-loading">
-      正在加载估值数据...
+      <div class="loading-spinner"></div>
+      <p>正在加载估值数据...</p>
     </div>
     
     <div v-if="error" class="chart-error">
-      {{ error }}
+      <div class="error-icon">⚠️</div>
+      <p>{{ error }}</p>
     </div>
     
-    <div v-if="!loading && !error" class="chart-container">
+    <div v-if="!loading && !error && !hasData" class="chart-no-data">
+      <div class="no-data-icon">📊</div>
+      <h3 class="no-data-title">暂无估值数据</h3>
+      <p class="no-data-description">该股票暂时没有可用的估值走势数据</p>
+      <div class="no-data-tips">
+        <p class="tip-item">💡 可能原因：</p>
+        <ul class="tip-list">
+          <li>新上市公司，历史数据不足</li>
+          <li>数据源暂未收录该股票估值信息</li>
+          <li>该股票类型不支持估值分析</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div v-if="!loading && !error && hasData" class="chart-container">
       <!-- 顶部信息栏 -->
       <div class="chart-header">
         <div class="chart-title-info">
@@ -112,6 +128,7 @@ const props = defineProps({
 
 const loading = ref(false)
 const error = ref(null)
+const hasData = ref(false)
 const chartRef = ref(null)
 let chart = null
 
@@ -307,9 +324,27 @@ const calculateDeviationStats = (alignedMedpsData, priceData) => {
   return { max: maxDev, min: minDev }
 }
 
-const initChart = (chartData) => {
+const initChart = async (chartData) => {
+  // 准备数据
+  console.log('chartData', chartData)
+  const medpsData = chartData.medps || []
+  const priceData = chartData.price || []
+  
+  // 检查是否有有效数据
+  if (!medpsData.length && !priceData.length) {
+    hasData.value = false
+    return
+  }
+  
+  // 先设置有数据状态，让 v-if 条件满足，DOM 开始渲染
+  hasData.value = true
+  
+  // 等待 DOM 渲染完成
+  await nextTick()
+  
+  // 再次检查 chartRef 是否已经渲染
   if (!chartRef.value) {
-    console.error('chartRef is not available')
+    console.error('chartRef is not available after setting hasData')
     return
   }
   
@@ -319,10 +354,6 @@ const initChart = (chartData) => {
   }
   
   chart = echarts.init(chartRef.value)
-  
-  // 准备数据
-  const medpsData = chartData.medps || []
-  const priceData = chartData.price || []
   
   // 存储数据供外部使用
   chartDataStore.value = chartData
@@ -818,20 +849,32 @@ const initChart = (chartData) => {
 const loadChartData = async () => {
   loading.value = true
   error.value = null
+  hasData.value = false
+  
   try {
     const response = await axios.get(`https://www.gurufocus.cn/_api/chart/${props.stockData.stockid}/valuation?locale=zh-hans`)
     const data = response.data
     
+    // 检查数据是否有效
+    const medpsData = data?.medps || []
+    const priceData = data?.price || []
+    
     // 先结束 loading 状态，让 DOM 显示出来
     loading.value = false
     
-    // 等待 DOM 更新完成后再初始化图表
-    await nextTick()
-    initChart(data)
+    // 如果没有数据，直接返回，不初始化图表
+    if (!medpsData.length && !priceData.length) {
+      hasData.value = false
+      return
+    }
+    
+    // 初始化图表（内部会处理 DOM 渲染等待）
+    await initChart(data)
   } catch (err) {
     error.value = err.message
     console.error('Error loading chart data:', err)
     loading.value = false
+    hasData.value = false
   }
 }
 
@@ -884,15 +927,137 @@ defineExpose({
   transform: translateY(-2px);
 }
 
-.chart-loading,
-.chart-error {
+.chart-loading {
   text-align: center;
-  padding: 40px 20px;
+  padding: 60px 20px;
   color: #999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f4f6;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.chart-loading p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
 }
 
 .chart-error {
-  color: #f56c6c;
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.error-icon {
+  font-size: 48px;
+  opacity: 0.8;
+}
+
+.chart-error p {
+  margin: 0;
+  color: #ef4444;
+  font-size: 14px;
+}
+
+.chart-no-data {
+  text-align: center;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 2px dashed #cbd5e1;
+  min-height: 400px;
+  justify-content: center;
+}
+
+.no-data-icon {
+  font-size: 64px;
+  opacity: 0.5;
+  margin-bottom: 8px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.no-data-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.no-data-description {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+  max-width: 400px;
+}
+
+.no-data-tips {
+  margin-top: 24px;
+  padding: 20px 24px;
+  background: white;
+  border-radius: 8px;
+  text-align: left;
+  max-width: 500px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tip-item {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.tip-list {
+  margin: 0;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.tip-list li {
+  position: relative;
+  padding-left: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.tip-list li:before {
+  content: "•";
+  position: absolute;
+  left: -12px;
+  color: #94a3b8;
+  font-weight: bold;
 }
 
 .chart-container {
