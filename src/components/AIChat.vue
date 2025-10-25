@@ -62,7 +62,7 @@
             v-for="(message, index) in messages" 
             :key="index"
             class="message-wrapper"
-            :class="message.role"
+            :class="[message.role, { 'hanai-analysis': message.isHanaiAnalysis }]"
           >
             <div class="message-bubble">
               <div class="message-content" v-html="formatMessage(message.content)"></div>
@@ -1001,7 +1001,13 @@ const hanaiAnalysis = async () => {
   addMessage({
     role: 'assistant',
     content: '',
-    timestamp: getCurrentTime()
+    timestamp: getCurrentTime(),
+    isHanaiAnalysis: true  // 标记这是 HANAI 分析消息
+  })
+  
+  // 滚动到底部显示新消息
+  nextTick(() => {
+    scrollToBottom(true)
   })
   
   isLoading.value = true
@@ -1085,7 +1091,8 @@ const callKimiAPI = async (prompt, messageIndex) => {
           }
         ],
         stream: true,
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 8000  // 增加最大输出 token 数，确保回答完整
       })
     })
     
@@ -1096,12 +1103,16 @@ const callKimiAPI = async (prompt, messageIndex) => {
     const reader = response.body.getReader()
     const decoder = new TextDecoder('utf-8')
     let buffer = ''
-    let displayedContent = '🤖 HANAI 价值分析\n\n' // 已显示的内容
+    let displayedContent = 'HANAI 价值分析\n\n' // 已显示的内容
     let pendingContent = '' // 待显示的内容缓冲区
     let isTyping = false // 是否正在打字
+    let totalReceived = 0 // 统计接收到的总字符数
     
     // 显示开始提示
     messages.value[messageIndex].content = displayedContent
+    
+    // 滚动到标题位置
+    nextTick(() => scrollToBottom(true))
     
     // 打字机效果函数
     const typewriterEffect = async () => {
@@ -1133,7 +1144,31 @@ const callKimiAPI = async (prompt, messageIndex) => {
     while (true) {
       const { done, value } = await reader.read()
       
-      if (done) break
+      if (done) {
+        // 处理缓冲区中的剩余数据
+        if (buffer.trim()) {
+          const line = buffer.trim()
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const jsonStr = line.slice(6)
+              const data = JSON.parse(jsonStr)
+              
+              if (data.choices && data.choices[0]?.delta?.content) {
+                const content = data.choices[0].delta.content
+                totalReceived += content.length
+                pendingContent += content
+                
+                if (!isTyping) {
+                  typewriterEffect()
+                }
+              }
+            } catch (e) {
+              console.error('解析剩余 SSE 数据失败:', e)
+            }
+          }
+        }
+        break
+      }
       
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
@@ -1149,6 +1184,7 @@ const callKimiAPI = async (prompt, messageIndex) => {
             
             if (data.choices && data.choices[0]?.delta?.content) {
               const content = data.choices[0].delta.content
+              totalReceived += content.length
               // 将新内容加入待显示缓冲区
               pendingContent += content
               
@@ -1164,10 +1200,26 @@ const callKimiAPI = async (prompt, messageIndex) => {
       }
     }
     
-    // 等待所有内容显示完毕
-    while (pendingContent.length > 0 || isTyping) {
+    // 确保打字机效果完成，等待所有内容显示完毕
+    let waitCount = 0
+    const maxWaitTime = 10000 // 最多等待10秒
+    while ((pendingContent.length > 0 || isTyping) && waitCount < maxWaitTime) {
       await new Promise(resolve => setTimeout(resolve, 50))
+      waitCount += 50
     }
+    
+    // 如果还有未显示的内容（超时情况），直接全部显示
+    if (pendingContent.length > 0) {
+      console.warn('⚠️ 打字机效果超时，直接显示剩余内容:', pendingContent.length, '字符')
+      displayedContent += pendingContent
+      messages.value[messageIndex].content = displayedContent
+      pendingContent = ''
+    }
+    
+    // 输出统计信息
+    console.log('✅ HANAI 分析完成')
+    console.log('📊 总共接收:', totalReceived, '字符')
+    console.log('📊 最终显示:', (displayedContent.length - 'HANAI 价值分析\n\n'.length), '字符')
     
     // 确保最后滚动到底部
     nextTick(() => scrollToBottom(true))
@@ -2324,6 +2376,124 @@ onUnmounted(() => {
   transform: translateX(2px) translateZ(0);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border-color: rgba(102, 126, 234, 0.3);
+}
+
+/* ========== HANAI 分析专属样式 ========== */
+.message-wrapper.hanai-analysis .message-bubble {
+  background: linear-gradient(135deg, 
+    rgba(139, 92, 246, 0.03) 0%, 
+    rgba(124, 58, 237, 0.05) 50%,
+    rgba(109, 40, 217, 0.03) 100%);
+  border: 1.5px solid rgba(139, 92, 246, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 
+    0 4px 16px rgba(139, 92, 246, 0.08),
+    0 2px 8px rgba(124, 58, 237, 0.05);
+  position: relative;
+  overflow: visible;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* HANAI 分析卡片装饰 */
+.message-wrapper.hanai-analysis .message-bubble::before {
+  content: '✨';
+  position: absolute;
+  top: -10px;
+  left: 16px;
+  font-size: 20px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(124, 58, 237, 0.9) 100%);
+  padding: 6px 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+  z-index: 1;
+  animation: hanaiPulse 3s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+@keyframes hanaiPulse {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.03) translateY(-1px);
+    opacity: 1;
+  }
+}
+
+/* HANAI 分析卡片光效 - 更柔和的扫光 */
+.message-wrapper.hanai-analysis .message-bubble::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.04) 50%,
+    transparent 100%);
+  animation: hanaiShine 5s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: 12px;
+}
+
+@keyframes hanaiShine {
+  0%, 20% {
+    left: -100%;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  80%, 100% {
+    left: 200%;
+    opacity: 0;
+  }
+}
+
+/* HANAI 分析内容样式 */
+.message-wrapper.hanai-analysis .message-content {
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.8;
+  padding-top: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+/* HANAI 分析标题样式 */
+.message-wrapper.hanai-analysis .message-content::first-line {
+  font-weight: 600;
+  font-size: 15px;
+  color: #7c3aed;
+  letter-spacing: 0.3px;
+}
+
+/* HANAI 分析时间戳 */
+.message-wrapper.hanai-analysis .message-time {
+  color: rgba(139, 92, 246, 0.7);
+  font-weight: 500;
+  font-size: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(139, 92, 246, 0.15);
+  transition: color 0.3s ease;
+}
+
+/* HANAI 分析悬停效果 - 更柔和 */
+.message-wrapper.hanai-analysis .message-bubble:hover {
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: 
+    0 8px 24px rgba(139, 92, 246, 0.12),
+    0 4px 12px rgba(124, 58, 237, 0.08);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.message-wrapper.hanai-analysis .message-bubble:hover::before {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
 }
 
 /* 滚动时禁用 hover 效果以提升性能 */
