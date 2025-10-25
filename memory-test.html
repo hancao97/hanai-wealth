@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>内存泄露诊断工具</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      color: #1e293b;
+      margin-bottom: 8px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+    
+    .section {
+      margin-bottom: 32px;
+      padding: 24px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+    }
+    
+    .section h2 {
+      color: #334155;
+      margin-bottom: 16px;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+    
+    .btn-warning {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: #64748b;
+      color: white;
+    }
+    
+    .status-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      border: 2px solid #e2e8f0;
+      margin-bottom: 12px;
+    }
+    
+    .status-card.warning {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+    
+    .status-card.danger {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+    
+    .status-card.success {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+    
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .metric:last-child {
+      border-bottom: none;
+    }
+    
+    .metric-label {
+      color: #64748b;
+      font-size: 14px;
+    }
+    
+    .metric-value {
+      font-weight: 700;
+      font-size: 18px;
+      color: #1e293b;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      transition: width 0.3s;
+    }
+    
+    .log {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    
+    .log-entry {
+      margin-bottom: 4px;
+    }
+    
+    .log-info { color: #3b82f6; }
+    .log-success { color: #10b981; }
+    .log-warning { color: #f59e0b; }
+    .log-error { color: #ef4444; }
+    
+    .chart-container {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+    }
+    
+    #memoryChart {
+      width: 100%;
+      height: 300px;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .badge-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+    
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .badge-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 内存泄露诊断工具</h1>
+    <p class="subtitle">用于检测和分析 HANAI·WEALTH 应用的内存使用情况</p>
+    
+    <!-- 当前状态 -->
+    <div class="section">
+      <h2>📊 当前内存状态</h2>
+      <div id="currentStatus" class="status-card">
+        <div class="metric">
+          <span class="metric-label">已使用内存</span>
+          <span class="metric-value" id="usedMemory">-- MB</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">总分配内存</span>
+          <span class="metric-value" id="totalMemory">-- MB</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">内存限制</span>
+          <span class="metric-value" id="limitMemory">-- MB</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">使用率</span>
+          <span class="metric-value" id="usagePercent">--%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 控制面板 -->
+    <div class="section">
+      <h2>🎮 测试控制</h2>
+      <div class="button-group">
+        <button class="btn-primary" onclick="checkMemory()">
+          <span>📈</span> 检查内存
+        </button>
+        <button class="btn-success" onclick="startStressTest()">
+          <span>🔥</span> 开始压力测试
+        </button>
+        <button class="btn-warning" onclick="stopStressTest()">
+          <span>⏸️</span> 停止测试
+        </button>
+        <button class="btn-danger" onclick="forceGC()">
+          <span>🗑️</span> 强制GC
+        </button>
+        <button class="btn-secondary" onclick="clearLog()">
+          <span>🧹</span> 清空日志
+        </button>
+        <button class="btn-secondary" onclick="exportData()">
+          <span>💾</span> 导出数据
+        </button>
+      </div>
+      
+      <div class="button-group">
+        <button class="btn-primary" onclick="testRouteSwitch()">
+          <span>🔄</span> 测试路由切换
+        </button>
+        <button class="btn-primary" onclick="testDataLoad()">
+          <span>📥</span> 测试数据加载
+        </button>
+        <button class="btn-primary" onclick="testChartRender()">
+          <span>📊</span> 测试图表渲染
+        </button>
+      </div>
+    </div>
+    
+    <!-- 趋势分析 -->
+    <div class="section">
+      <h2>📈 内存趋势</h2>
+      <div id="trendStatus" class="status-card">
+        <p>等待数据收集中...</p>
+      </div>
+      <div class="chart-container">
+        <canvas id="memoryChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- 日志 -->
+    <div class="section">
+      <h2>📝 诊断日志</h2>
+      <div id="logContainer" class="log">
+        <div class="log-entry log-info">[系统] 诊断工具已就绪</div>
+      </div>
+    </div>
+    
+    <!-- 建议 -->
+    <div class="section">
+      <h2>💡 优化建议</h2>
+      <div id="suggestions">
+        <p style="color: #64748b;">运行测试后将显示优化建议...</p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    let memoryChart = null;
+    let memoryData = [];
+    let testInterval = null;
+    let testCount = 0;
+    
+    // 初始化图表
+    function initChart() {
+      const ctx = document.getElementById('memoryChart').getContext('2d');
+      memoryChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: '已使用内存 (MB)',
+            data: [],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: '内存 (MB)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: '时间'
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // 检查内存
+    function checkMemory() {
+      if (!performance.memory) {
+        log('⚠️ 当前浏览器不支持 Memory API，请使用 Chrome 浏览器', 'warning');
+        return null;
+      }
+      
+      const memory = {
+        timestamp: new Date().toLocaleTimeString(),
+        used: (performance.memory.usedJSHeapSize / 1048576).toFixed(2),
+        total: (performance.memory.totalJSHeapSize / 1048576).toFixed(2),
+        limit: (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2),
+        percent: ((performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100).toFixed(2)
+      };
+      
+      // 更新显示
+      document.getElementById('usedMemory').textContent = memory.used + ' MB';
+      document.getElementById('totalMemory').textContent = memory.total + ' MB';
+      document.getElementById('limitMemory').textContent = memory.limit + ' MB';
+      document.getElementById('usagePercent').textContent = memory.percent + '%';
+      document.getElementById('progressBar').style.width = memory.percent + '%';
+      
+      // 更新状态卡片样式
+      const statusCard = document.getElementById('currentStatus');
+      statusCard.className = 'status-card';
+      if (memory.percent > 80) {
+        statusCard.classList.add('danger');
+      } else if (memory.percent > 60) {
+        statusCard.classList.add('warning');
+      } else {
+        statusCard.classList.add('success');
+      }
+      
+      // 记录数据
+      memoryData.push(memory);
+      
+      // 更新图表
+      if (memoryChart) {
+        memoryChart.data.labels.push(memory.timestamp);
+        memoryChart.data.datasets[0].data.push(memory.used);
+        
+        // 只保留最近50个数据点
+        if (memoryChart.data.labels.length > 50) {
+          memoryChart.data.labels.shift();
+          memoryChart.data.datasets[0].data.shift();
+        }
+        
+        memoryChart.update();
+      }
+      
+      // 分析趋势
+      analyzeTrend();
+      
+      log(`✅ 内存检查: ${memory.used} MB / ${memory.limit} MB (${memory.percent}%)`, 'success');
+      
+      return memory;
+    }
+    
+    // 分析趋势
+    function analyzeTrend() {
+      if (memoryData.length < 5) {
+        document.getElementById('trendStatus').innerHTML = '<p>数据不足，需要更多样本...</p>';
+        return;
+      }
+      
+      const recent = memoryData.slice(-10);
+      const first = parseFloat(recent[0].used);
+      const last = parseFloat(recent[recent.length - 1].used);
+      const increase = last - first;
+      const percentIncrease = (increase / first * 100).toFixed(2);
+      
+      let statusClass = 'status-card';
+      let statusIcon = '✅';
+      let statusText = '正常';
+      let suggestions = [];
+      
+      if (percentIncrease > 20) {
+        statusClass += ' danger';
+        statusIcon = '🚨';
+        statusText = '严重内存泄露';
+        suggestions = [
+          '检查 ECharts 实例是否正确销毁',
+          '检查事件监听器是否移除',
+          '检查 Store 中的缓存是否清理',
+          '检查是否有未取消的定时器或请求'
+        ];
+      } else if (percentIncrease > 10) {
+        statusClass += ' warning';
+        statusIcon = '⚠️';
+        statusText = '内存增长较快';
+        suggestions = [
+          '建议检查大型数据缓存',
+          '考虑添加数据清理机制',
+          '检查组件销毁流程'
+        ];
+      } else {
+        statusClass += ' success';
+        statusIcon = '✅';
+        statusText = '内存使用正常';
+        suggestions = ['继续保持良好的内存管理'];
+      }
+      
+      const html = `
+        <div class="metric">
+          <span class="metric-label">趋势状态</span>
+          <span class="metric-value">${statusIcon} ${statusText}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">近期增长</span>
+          <span class="metric-value" style="color: ${percentIncrease > 10 ? '#ef4444' : '#10b981'}">${increase.toFixed(2)} MB (${percentIncrease}%)</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">样本数量</span>
+          <span class="metric-value">${memoryData.length}</span>
+        </div>
+      `;
+      
+      document.getElementById('trendStatus').className = statusClass;
+      document.getElementById('trendStatus').innerHTML = html;
+      
+      // 更新建议
+      if (suggestions.length > 0) {
+        const suggestionsHtml = suggestions.map(s => `<li>${s}</li>`).join('');
+        document.getElementById('suggestions').innerHTML = `<ul style="padding-left: 20px; color: #334155;">${suggestionsHtml}</ul>`;
+      }
+    }
+    
+    // 压力测试
+    function startStressTest() {
+      if (testInterval) {
+        log('⚠️ 测试已在运行中', 'warning');
+        return;
+      }
+      
+      testCount = 0;
+      log('🔥 开始压力测试...', 'info');
+      
+      testInterval = setInterval(() => {
+        testCount++;
+        checkMemory();
+        
+        if (testCount >= 30) {
+          stopStressTest();
+          log('✅ 压力测试完成（30次采样）', 'success');
+        }
+      }, 2000);
+    }
+    
+    function stopStressTest() {
+      if (testInterval) {
+        clearInterval(testInterval);
+        testInterval = null;
+        log('⏸️ 测试已停止', 'info');
+      }
+    }
+    
+    // 强制垃圾回收（仅在支持的浏览器中）
+    function forceGC() {
+      if (window.gc) {
+        window.gc();
+        log('🗑️ 已触发垃圾回收', 'success');
+        setTimeout(checkMemory, 1000);
+      } else {
+        log('⚠️ 当前浏览器不支持手动GC，请使用 --js-flags="--expose-gc" 启动 Chrome', 'warning');
+      }
+    }
+    
+    // 测试路由切换
+    function testRouteSwitch() {
+      log('🔄 模拟路由切换测试...', 'info');
+      // 这里需要实际打开应用窗口来测试
+      log('ℹ️ 请在应用中手动快速切换页面，然后观察内存变化', 'info');
+    }
+    
+    // 测试数据加载
+    function testDataLoad() {
+      log('📥 模拟数据加载测试...', 'info');
+      log('ℹ️ 请在应用中快速切换日期，然后观察内存变化', 'info');
+    }
+    
+    // 测试图表渲染
+    function testChartRender() {
+      log('📊 模拟图表渲染测试...', 'info');
+      log('ℹ️ 请在应用中多次进入/退出股票详情页，然后观察内存变化', 'info');
+    }
+    
+    // 日志
+    function log(message, type = 'info') {
+      const logContainer = document.getElementById('logContainer');
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${timestamp}] ${message}`;
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+    
+    function clearLog() {
+      document.getElementById('logContainer').innerHTML = '<div class="log-entry log-info">[系统] 日志已清空</div>';
+    }
+    
+    // 导出数据
+    function exportData() {
+      const data = {
+        timestamp: new Date().toISOString(),
+        samples: memoryData,
+        summary: {
+          totalSamples: memoryData.length,
+          avgUsed: (memoryData.reduce((sum, m) => sum + parseFloat(m.used), 0) / memoryData.length).toFixed(2),
+          maxUsed: Math.max(...memoryData.map(m => parseFloat(m.used))).toFixed(2),
+          minUsed: Math.min(...memoryData.map(m => parseFloat(m.used))).toFixed(2)
+        }
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `memory-report-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      log('💾 数据已导出', 'success');
+    }
+    
+    // 初始化
+    window.addEventListener('load', () => {
+      initChart();
+      checkMemory();
+      
+      // 自动检查
+      setInterval(checkMemory, 5000);
+      
+      log('✅ 诊断工具初始化完成', 'success');
+      log('ℹ️ 建议：在另一个标签页打开应用，然后在此监控内存变化', 'info');
+    });
+  </script>
+</body>
+</html>
+

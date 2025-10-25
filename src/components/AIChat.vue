@@ -139,10 +139,9 @@ const messagesContainer = ref(null)
 const inputTextarea = ref(null)
 const showPulse = ref(true)
 
-// 快捷问题（可自定义）
-const quickQuestions = ref([
-  // 在这里添加你的快捷问题
-])
+// 性能优化：限制消息数量，避免DOM过多
+const MAX_MESSAGES = 50
+
 
 // 切换聊天窗口
 const toggleChat = () => {
@@ -538,27 +537,16 @@ const formatFCF = (value) => {
   }
 }
 
-// 发送消息
-const handleSend = () => {
-  if (!inputMessage.value.trim() || isLoading.value) return
+// 添加消息并限制数量
+const addMessage = (message) => {
+  messages.value.push(message)
   
-  const userMessage = {
-    role: 'user',
-    content: inputMessage.value.trim(),
-    timestamp: getCurrentTime()
+  // 性能优化：限制消息数量，保留最新的消息
+  if (messages.value.length > MAX_MESSAGES) {
+    messages.value = messages.value.slice(-MAX_MESSAGES)
   }
-  
-  messages.value.push(userMessage)
-  inputMessage.value = ''
-  
-  // 滚动到底部
-  nextTick(() => {
-    scrollToBottom()
-  })
-  
-  // 模拟AI回复
-  simulateAIResponse(userMessage.content)
 }
+
 
 // 价值分析
 const startValueAnalysis = async () => {
@@ -570,7 +558,7 @@ const startValueAnalysis = async () => {
     timestamp: getCurrentTime()
   }
   
-  messages.value.push(userMessage)
+  addMessage(userMessage)
   
   // 滚动到底部
   nextTick(() => {
@@ -581,39 +569,61 @@ const startValueAnalysis = async () => {
   await displayValueAnalysis()
 }
 
-// 打字机效果显示文本
+// 打字机效果显示文本 - 优化版本，保持清晰的打字机效果
 const typeWriter = async (messageIndex, fullContent, speed = 30) => {
+  // 开始打字时隐藏滚动条
+  if (messagesContainer.value) {
+    messagesContainer.value.classList.add('typing')
+  }
+  
   let currentText = ''
+  let lastUpdateTime = 0
+  let lastScrollTime = 0
+  const scrollInterval = 300 // 滚动间隔增加到300ms
+  let charCount = 0 // 计数可见字符
   
   for (let i = 0; i < fullContent.length; i++) {
     currentText += fullContent[i]
-    messages.value[messageIndex].content = currentText
     
-    // 跳过 HTML 标签内部，加快速度
+    // 跳过 HTML 标签内部，但仍然显示效果
     if (fullContent[i] === '<') {
       while (i < fullContent.length && fullContent[i] !== '>') {
         i++
         currentText += fullContent[i]
       }
       messages.value[messageIndex].content = currentText
+      // 标签后添加小延迟，让用户能看到结构出现
+      await new Promise(resolve => setTimeout(resolve, 5))
     } else {
-      // 在可见文字处添加延迟
-      await new Promise(resolve => setTimeout(resolve, speed))
+      // 可见字符才计数
+      charCount++
+      
+      // 使用 requestAnimationFrame 优化性能
+      const now = Date.now()
+      if (now - lastUpdateTime >= speed) {
+        messages.value[messageIndex].content = currentText
+        lastUpdateTime = now
+        await new Promise(resolve => requestAnimationFrame(resolve))
+      }
     }
     
-    // 每隔一段自动滚动
-    if (i % 50 === 0) {
+    // 减少滚动频率，使用时间间隔
+    const now = Date.now()
+    if (now - lastScrollTime >= scrollInterval) {
       scrollToBottom()
+      lastScrollTime = now
     }
   }
   
-  scrollToBottom()
+  // 确保最后的内容被显示并滚动到底部
+  messages.value[messageIndex].content = currentText
+  scrollToBottom(true) // 立即滚动
 }
 
 // 显示价值分析内容（分段流式+打字机效果）
 const displayValueAnalysis = async () => {
   if (!props.stockData) {
-    messages.value.push({
+    addMessage({
       role: 'assistant',
       content: '抱歉，当前没有股票数据可供分析。',
       timestamp: getCurrentTime()
@@ -623,13 +633,18 @@ const displayValueAnalysis = async () => {
   
   isLoading.value = true
   
-  // 等待图表数据加载（最多等待5秒）
+  // 开始分析时隐藏滚动条
+  if (messagesContainer.value) {
+    messagesContainer.value.classList.add('typing')
+  }
+  
+  // 优化：快速检查图表数据，最多等待1秒
   let waitCount = 0
-  const maxWait = 10
+  const maxWait = 4  // 4 次 × 250ms = 1秒
   
   while (waitCount < maxWait) {
     if (!props.valuationChartRef) {
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 250))
       waitCount++
       continue
     }
@@ -638,93 +653,98 @@ const displayValueAnalysis = async () => {
     const hasData = currentPrice && currentPrice !== '--'
     
     if (hasData) {
-      console.log('✅ 图表数据已加载，等待了', waitCount * 500, 'ms')
+      console.log('✅ 图表数据已加载，等待了', waitCount * 250, 'ms')
       break
     }
     
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 250))
     waitCount++
   }
   
   if (waitCount >= maxWait) {
-    console.warn('⚠️ 图表数据加载超时，将使用基础数据')
+    console.log('ℹ️ 图表数据未完全加载，使用基础数据继续')
   }
   
   try {
     const companyName = props.stockData.company || '该公司'
     
-    // 开场白：可爱的欢迎语
-    await new Promise(resolve => setTimeout(resolve, 200))
+    // 开场白：可爱的欢迎语（减少延迟）
+    await new Promise(resolve => setTimeout(resolve, 100))
     const welcomeMsg = `<div class="ai-welcome-message">✨ 嗨！请稍等片刻，让 HANAI 对【${companyName}】进行一番深入了解～ 🔍💫</div>`
     const welcomeIndex = messages.value.length
-    messages.value.push({
+    addMessage({
       role: 'assistant',
       content: '',
       timestamp: getCurrentTime()
     })
     await nextTick()
-    await typeWriter(welcomeIndex, welcomeMsg, 25)
+    await typeWriter(welcomeIndex, welcomeMsg, 30)
     
-    // 第一段：当前股价信息（打字机效果）
-    await new Promise(resolve => setTimeout(resolve, 800))
+    // 第一段：当前股价信息（打字机效果，减少延迟）
+    await new Promise(resolve => setTimeout(resolve, 400))
     const priceIntro = `<div class="ai-transition-text">📊 首先，让我们看看股价数据～</div>`
     const priceInfo = priceIntro + generatePriceInfo()
     const priceIndex = messages.value.length
-    messages.value.push({
+    addMessage({
       role: 'assistant',
       content: '',
       timestamp: getCurrentTime()
     })
     await nextTick()
-    await typeWriter(priceIndex, priceInfo, 20)
+    await typeWriter(priceIndex, priceInfo, 25)
     
-    // 第二段：股票详细信息（打字机效果）
-    await new Promise(resolve => setTimeout(resolve, 600))
+    // 第二段：股票详细信息（打字机效果，减少延迟）
+    await new Promise(resolve => setTimeout(resolve, 300))
     const stockIntro = `<div class="ai-transition-text">🎯 接下来，深入了解一下公司的详细信息吧～</div>`
     const stockInfo = stockIntro + formatStockInfo()
     const stockIndex = messages.value.length
-    messages.value.push({
+    addMessage({
       role: 'assistant',
       content: '',
       timestamp: getCurrentTime()
     })
     await nextTick()
-    await typeWriter(stockIndex, stockInfo, 15)
+    await typeWriter(stockIndex, stockInfo, 20)
     
-    // 第三段：价值大师网数据（打字机效果）
-    await new Promise(resolve => setTimeout(resolve, 600))
+    // 第三段：价值大师网数据（打字机效果，减少延迟）
+    await new Promise(resolve => setTimeout(resolve, 300))
     const valueIntro = `<div class="ai-transition-text">💎 最后，来看看专业的估值评估数据～</div>`
     const valueInfo = valueIntro + generateValueInfo()
     const valueIndex = messages.value.length
-    messages.value.push({
+    addMessage({
       role: 'assistant',
       content: '',
       timestamp: getCurrentTime()
     })
     await nextTick()
-    await typeWriter(valueIndex, valueInfo, 20)
+    await typeWriter(valueIndex, valueInfo, 25)
     
-    // 结束语：可爱的总结
-    await new Promise(resolve => setTimeout(resolve, 800))
+    // 结束语：可爱的总结（减少延迟）
+    await new Promise(resolve => setTimeout(resolve, 400))
     const endingMsg = `<div class="ai-ending-message">🎉 喔，我现在对【${companyName}】有了一个初步的了解，接下来我将开始正式的工作啦！💪✨</div>`
     const endingIndex = messages.value.length
-    messages.value.push({
+    addMessage({
       role: 'assistant',
       content: '',
       timestamp: getCurrentTime()
     })
     await nextTick()
-    await typeWriter(endingIndex, endingMsg, 25)
+    await typeWriter(endingIndex, endingMsg, 30)
     
   } catch (error) {
     console.error('生成分析内容失败:', error)
-    messages.value.push({
+    addMessage({
       role: 'assistant',
       content: '生成分析内容时出现错误，请稍后再试。',
       timestamp: getCurrentTime()
     })
   } finally {
     isLoading.value = false
+    
+    // 输出完成后显示滚动条
+    if (messagesContainer.value) {
+      messagesContainer.value.classList.remove('typing')
+    }
   }
 }
 
@@ -857,46 +877,6 @@ const generateValueInfo = () => {
   return info
 }
 
-// 模拟AI响应
-const simulateAIResponse = async (question) => {
-  isLoading.value = true
-  
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 1500))
-  
-  const response = generateAIResponse(question)
-  
-  messages.value.push({
-    role: 'assistant',
-    content: response,
-    timestamp: getCurrentTime()
-  })
-  
-  isLoading.value = false
-  
-  nextTick(() => {
-    scrollToBottom()
-  })
-}
-
-// 生成AI响应（可自定义问答逻辑）
-const generateAIResponse = (question) => {
-  if (!props.stockData) {
-    return '抱歉，当前没有股票数据可供分析。'
-  }
-
-  const stock = props.stockData
-  
-  // TODO: 在这里添加你自己的问答逻辑
-  // 示例：根据 question 内容判断并返回相应的回答
-  // 可以使用 stock 对象中的数据来生成个性化回答
-  
-  // 默认响应
-  return `您好，您问到：<strong>"${question}"</strong>\n\n` +
-    `当前正在分析 <strong>${stock.company}</strong> 的数据...\n\n` +
-    `💡 请根据您的需求自定义 AI 问答逻辑。`
-}
-
 // 格式化消息（支持换行和加粗）
 const formatMessage = (content) => {
   return content
@@ -910,10 +890,24 @@ const getCurrentTime = () => {
   return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
 }
 
-// 滚动到底部
-const scrollToBottom = () => {
-  if (messagesContainer.value) {
+// 滚动到底部 - 使用节流优化性能
+let scrollTimer = null
+const scrollToBottom = (immediate = false) => {
+  if (!messagesContainer.value) return
+  
+  if (immediate) {
+    // 立即滚动
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  } else {
+    // 节流滚动，避免频繁触发
+    if (scrollTimer) return
+    
+    scrollTimer = setTimeout(() => {
+      if (messagesContainer.value) {
+        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      }
+      scrollTimer = null
+    }, 100)
   }
 }
 
@@ -937,11 +931,42 @@ const getParticleStyle = (index) => {
   }
 }
 
+// 滚动监听 - 使用节流优化性能
+let scrollEndTimer = null
+let isScrolling = false
+const handleScroll = () => {
+  if (!messagesContainer.value) return
+  
+  // 使用节流，避免频繁执行
+  if (!isScrolling) {
+    isScrolling = true
+    messagesContainer.value.classList.add('scrolling')
+  }
+  
+  // 清除之前的定时器
+  if (scrollEndTimer) {
+    clearTimeout(scrollEndTimer)
+  }
+  
+  // 滚动结束后移除类
+  scrollEndTimer = setTimeout(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.classList.remove('scrolling')
+      isScrolling = false
+    }
+  }, 150)
+}
+
 onMounted(() => {
   // 3秒后隐藏脉冲动画
   setTimeout(() => {
     showPulse.value = false
   }, 3000)
+  
+  // 添加滚动监听
+  if (messagesContainer.value) {
+    messagesContainer.value.addEventListener('scroll', handleScroll, { passive: true })
+  }
 })
 
 onUnmounted(() => {
@@ -950,6 +975,21 @@ onUnmounted(() => {
   document.body.style.position = ''
   document.body.style.width = ''
   document.body.style.top = ''
+  
+  // 移除滚动监听
+  if (messagesContainer.value) {
+    messagesContainer.value.removeEventListener('scroll', handleScroll)
+  }
+  
+  // 清理定时器
+  if (scrollTimer) {
+    clearTimeout(scrollTimer)
+    scrollTimer = null
+  }
+  if (scrollEndTimer) {
+    clearTimeout(scrollEndTimer)
+    scrollEndTimer = null
+  }
 })
 </script>
 
@@ -998,7 +1038,7 @@ onUnmounted(() => {
   display: inline-block;
 }
 
-/* 脉冲波纹动画 */
+/* 脉冲波纹动画 - 优化性能 */
 .pulse-ring {
   position: absolute;
   top: 50%;
@@ -1008,8 +1048,10 @@ onUnmounted(() => {
   height: 100%;
   border-radius: 50px;
   border: 2px solid rgba(102, 126, 234, 0.3);
-  animation: pulseRing 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulseRing 3s ease-out infinite;
   pointer-events: none;
+  /* 性能优化 */
+  will-change: transform, opacity;
 }
 
 .pulse-ring-1 {
@@ -1017,11 +1059,11 @@ onUnmounted(() => {
 }
 
 .pulse-ring-2 {
-  animation-delay: 1.5s;
+  animation-delay: 1s;
 }
 
 .pulse-ring-3 {
-  animation-delay: 3s;
+  animation-delay: 2s;
 }
 
 @keyframes pulseRing {
@@ -1029,11 +1071,8 @@ onUnmounted(() => {
     transform: translate(-50%, -50%) scale(1);
     opacity: 0.4;
   }
-  50% {
-    opacity: 0.15;
-  }
   100% {
-    transform: translate(-50%, -50%) scale(1.5);
+    transform: translate(-50%, -50%) scale(1.4);
     opacity: 0;
   }
 }
@@ -1049,19 +1088,20 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 单个粒子 */
+/* 单个粒子 - 优化性能 */
 .particle {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 4px;
   height: 4px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(102, 126, 234, 0.4) 50%, transparent 100%);
+  background: rgba(102, 126, 234, 0.5);
   border-radius: 50%;
   transform-origin: 0 0;
-  animation: particleFloat 5s ease-in-out infinite;
+  animation: particleFloat 4s ease-in-out infinite;
   animation-delay: var(--delay);
-  filter: blur(0.5px);
+  /* 性能优化 */
+  will-change: transform, opacity;
 }
 
 @keyframes particleFloat {
@@ -1070,12 +1110,12 @@ onUnmounted(() => {
     opacity: 0;
   }
   50% {
-    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(75px) scale(1);
-    opacity: 0.8;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(70px) scale(1);
+    opacity: 0.6;
   }
 }
 
-/* 浮动按钮主体 */
+/* 浮动按钮主体 - 优化性能 */
 .ai-chat-fab {
   position: relative;
   display: flex;
@@ -1088,81 +1128,36 @@ onUnmounted(() => {
   font-size: 14px;
   overflow: hidden;
   
-  /* 3D效果 */
-  transform-style: preserve-3d;
-  perspective: 1000px;
-  
-  /* 渐变背景 */
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-  background-size: 200% 200%;
+  /* 简化背景 */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   
   /* 阴影效果 */
   box-shadow: 
     0 8px 24px rgba(102, 126, 234, 0.35),
-    0 4px 12px rgba(118, 75, 162, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 4px 12px rgba(118, 75, 162, 0.25);
   
-  /* 过渡动画 */
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* 优化过渡动画 */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   
-  /* 背景动画 */
-  animation: gradientShift 6s ease infinite;
+  /* 性能优化 */
+  will-change: transform;
 }
 
-@keyframes gradientShift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-/* 内部光晕 */
+/* 简化光效以提升性能 */
 .fab-glow {
   position: absolute;
   top: -50%;
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, transparent 70%);
-  animation: glowPulse 4s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
   pointer-events: none;
+  opacity: 0.5;
 }
 
-@keyframes glowPulse {
-  0%, 100% {
-    opacity: 0.3;
-    transform: scale(0.9);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.1);
-  }
-}
-
-/* 光线扫过效果 */
+/* 移除光线扫过效果以提升性能 */
 .fab-shine {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(255, 255, 255, 0.4) 50%, 
-    transparent 100%);
-  animation: shine 3s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes shine {
-  0% {
-    left: -100%;
-  }
-  50%, 100% {
-    left: 200%;
-  }
+  display: none;
 }
 
 /* 按钮内容 */
@@ -1179,18 +1174,9 @@ onUnmounted(() => {
 .fab-icon {
   font-size: 20px;
   line-height: 1;
-  animation: iconBounce 3s ease-in-out infinite;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   transition: transform 0.3s ease;
-}
-
-@keyframes iconBounce {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-2px) rotate(0deg);
-  }
+  /* 移除持续动画以提升性能 */
 }
 
 .fab-text {
@@ -1199,49 +1185,20 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
-/* 悬停效果 */
+/* 悬停效果 - 简化 */
 .ai-chat-fab:hover {
   transform: translateY(-4px) scale(1.05);
   box-shadow: 
     0 16px 40px rgba(102, 126, 234, 0.5),
-    0 8px 20px rgba(118, 75, 162, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    0 0 30px rgba(240, 147, 251, 0.3);
+    0 8px 20px rgba(118, 75, 162, 0.35);
 }
 
 .ai-chat-fab:hover .fab-icon {
-  animation: iconExcited 1.2s ease-in-out infinite;
-  transform: scale(1.08);
-}
-
-@keyframes iconExcited {
-  0%, 100% {
-    transform: scale(1.08) rotate(0deg);
-  }
-  25% {
-    transform: scale(1.1) rotate(-3deg);
-  }
-  50% {
-    transform: scale(1.08) rotate(0deg);
-  }
-  75% {
-    transform: scale(1.1) rotate(3deg);
-  }
+  transform: scale(1.1);
 }
 
 .ai-chat-fab:hover .fab-glow {
-  animation: glowPulseHover 2s ease-in-out infinite;
-}
-
-@keyframes glowPulseHover {
-  0%, 100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(1.3);
-  }
+  opacity: 0.8;
 }
 
 /* 按下效果 */
@@ -1284,7 +1241,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* 动态渐变底边 */
+/* 动态渐变底边 - 优化版本 */
 .chat-header::after {
   content: '';
   position: absolute;
@@ -1300,6 +1257,8 @@ onUnmounted(() => {
     transparent 100%);
   background-size: 200% 100%;
   animation: headerLineFlow 3s linear infinite;
+  /* 性能优化 */
+  will-change: background-position;
 }
 
 @keyframes headerLineFlow {
@@ -1320,7 +1279,7 @@ onUnmounted(() => {
   z-index: 1;
 }
 
-/* 图标容器 */
+/* 图标容器 - 简化动画 */
 .header-icon-wrapper {
   width: 40px;
   height: 40px;
@@ -1334,25 +1293,10 @@ onUnmounted(() => {
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   position: relative;
   overflow: hidden;
-  animation: iconBreath 3s ease-in-out infinite;
+  /* 移除持续动画 */
 }
 
-@keyframes iconBreath {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 
-      0 4px 12px rgba(102, 126, 234, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 
-      0 6px 16px rgba(102, 126, 234, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  }
-}
-
-/* 图标光晕 */
+/* 简化图标光晕 */
 .header-icon-wrapper::before {
   content: '';
   position: absolute;
@@ -1360,19 +1304,9 @@ onUnmounted(() => {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
-  animation: iconGlow 2s ease-in-out infinite;
-}
-
-@keyframes iconGlow {
-  0%, 100% {
-    opacity: 0.5;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+  opacity: 0.6;
+  /* 移除动画 */
 }
 
 .header-bot-icon {
@@ -1413,17 +1347,16 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #10b981;
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  /* 简化动画 */
   animation: statusPulse 2s ease-in-out infinite;
 }
 
 @keyframes statusPulse {
   0%, 100% {
     opacity: 1;
-    transform: scale(1);
   }
   50% {
-    opacity: 0.6;
-    transform: scale(1.2);
+    opacity: 0.5;
   }
 }
 
@@ -1487,69 +1420,62 @@ onUnmounted(() => {
   transform: scale(0.95);
 }
 
-/* 消息列表 */
+/* 消息列表 - 极致优化滚动性能 */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.03) 0%, transparent 50%),
-    linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  /* 简化背景，减少重绘 */
+  background: #f8fafc;
   display: flex;
   flex-direction: column;
   gap: 16px;
   position: relative;
+  /* 性能优化 */
+  will-change: scroll-position;
+  contain: layout style paint;
+  /* 启用硬件加速 */
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+  /* 优化滚动性能 */
+  scroll-behavior: auto;
 }
 
-/* 消息列表装饰背景 */
-.chat-messages::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100px;
-  background: linear-gradient(180deg, rgba(102, 126, 234, 0.05) 0%, transparent 100%);
-  pointer-events: none;
+/* 移除装饰背景以提升滚动性能 */
+/* .chat-messages::before 已删除 */
+
+/* 使用浏览器原生滚动条，性能最优 */
+/* 移除自定义滚动条样式 */
+
+/* AI 输出时隐藏滚动条 */
+.chat-messages.typing {
+  overflow-y: hidden;
 }
 
-.chat-messages::-webkit-scrollbar {
-  width: 8px;
+/* 输出完成后显示滚动条 */
+.chat-messages:not(.typing) {
+  overflow-y: auto;
 }
 
-.chat-messages::-webkit-scrollbar-track {
-  background: rgba(148, 163, 184, 0.05);
-  border-radius: 4px;
-  margin: 8px 0;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.4), rgba(118, 75, 162, 0.4));
-  border-radius: 4px;
-  transition: all 0.3s ease;
-}
-
-.chat-messages::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.6), rgba(118, 75, 162, 0.6));
-  box-shadow: 0 0 6px rgba(102, 126, 234, 0.3);
-}
-
-/* 消息气泡 */
+/* 消息气泡 - 优化动画性能 */
 .message-wrapper {
   display: flex;
-  animation: messageSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: messageSlideIn 0.3s ease-out;
   position: relative;
+  /* 性能优化 - 动画完成后移除 will-change */
+  animation-fill-mode: forwards;
 }
 
+/* 动画完成后移除 will-change */
 @keyframes messageSlideIn {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.9);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -1566,34 +1492,24 @@ onUnmounted(() => {
   padding: 12px 16px;
   border-radius: 16px;
   position: relative;
-  transition: all 0.3s ease;
+  /* 优化过渡效果 */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* 启用硬件加速 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .message-wrapper.user .message-bubble {
+  /* 简化背景，移除动画 */
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-size: 200% 200%;
   color: white;
   border-bottom-right-radius: 4px;
-  box-shadow: 
-    0 4px 12px rgba(102, 126, 234, 0.3),
-    0 2px 6px rgba(118, 75, 162, 0.2);
-  animation: messageGradient 3s ease infinite;
-}
-
-@keyframes messageGradient {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .message-wrapper.user .message-bubble:hover {
-  transform: translateX(-4px);
-  box-shadow: 
-    0 6px 16px rgba(102, 126, 234, 0.4),
-    0 3px 8px rgba(118, 75, 162, 0.3);
+  transform: translateX(-2px) translateZ(0);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 .message-wrapper.assistant .message-bubble {
@@ -1601,17 +1517,23 @@ onUnmounted(() => {
   border: 1px solid rgba(148, 163, 184, 0.2);
   color: #334155;
   border-bottom-left-radius: 4px;
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .message-wrapper.assistant .message-bubble:hover {
-  transform: translateX(4px);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 2px 6px rgba(0, 0, 0, 0.05);
+  transform: translateX(2px) translateZ(0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border-color: rgba(102, 126, 234, 0.3);
+}
+
+/* 滚动时禁用 hover 效果以提升性能 */
+.chat-messages.scrolling .message-bubble {
+  pointer-events: none;
+}
+
+.chat-messages.scrolling .message-bubble:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .message-content {
@@ -1636,22 +1558,12 @@ onUnmounted(() => {
   text-align: right;
 }
 
-/* 加载动画 */
+/* 加载动画 - 简化 */
 .loading-bubble {
   padding: 16px 20px;
-  background: linear-gradient(135deg, 
-    rgba(102, 126, 234, 0.05) 0%, 
-    rgba(118, 75, 162, 0.05) 100%);
-  animation: loadingPulse 2s ease-in-out infinite;
-}
-
-@keyframes loadingPulse {
-  0%, 100% {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  }
-  50% {
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
-  }
+  background: rgba(102, 126, 234, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  /* 移除脉冲动画 */
 }
 
 .typing-indicator {
@@ -1663,10 +1575,11 @@ onUnmounted(() => {
 .typing-indicator span {
   width: 10px;
   height: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #667eea;
   border-radius: 50%;
-  animation: typingBounce 1.4s infinite ease-in-out;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+  animation: typingBounce 1.2s infinite ease-in-out;
+  /* 性能优化 */
+  will-change: transform, opacity;
 }
 
 .typing-indicator span:nth-child(1) {
@@ -1679,11 +1592,11 @@ onUnmounted(() => {
 
 @keyframes typingBounce {
   0%, 80%, 100% {
-    transform: scale(0.6) translateY(0);
+    transform: translateY(0);
     opacity: 0.4;
   }
   40% {
-    transform: scale(1.2) translateY(-6px);
+    transform: translateY(-6px);
     opacity: 1;
   }
 }
@@ -2046,10 +1959,10 @@ onUnmounted(() => {
 
 /* ========== 价值分析专属样式 ========== */
 
-/* AI 欢迎语样式 */
+/* AI 欢迎语样式 - 移除动画提升性能 */
 .message-content :deep(.ai-welcome-message) {
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  background: rgba(102, 126, 234, 0.1);
   border-radius: 12px;
   border: 2px solid rgba(102, 126, 234, 0.3);
   font-size: 15px;
@@ -2057,23 +1970,13 @@ onUnmounted(() => {
   color: #667eea;
   text-align: center;
   margin: 8px 0 16px 0;
-  animation: welcomePulse 2s ease-in-out infinite;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
 }
 
-@keyframes welcomePulse {
-  0%, 100% {
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-  }
-  50% {
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-  }
-}
-
-/* AI 过渡文字样式 */
+/* AI 过渡文字样式 - 简化渐变 */
 .message-content :deep(.ai-transition-text) {
   padding: 10px 16px;
-  background: linear-gradient(90deg, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0.05));
+  background: rgba(251, 191, 36, 0.1);
   border-left: 4px solid #fbbf24;
   border-radius: 6px;
   font-size: 14px;
@@ -2085,10 +1988,10 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-/* AI 结束语样式 */
+/* AI 结束语样式 - 简化动画 */
 .message-content :deep(.ai-ending-message) {
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+  background: rgba(16, 185, 129, 0.1);
   border-radius: 12px;
   border: 2px solid rgba(16, 185, 129, 0.3);
   font-size: 15px;
@@ -2097,25 +2000,13 @@ onUnmounted(() => {
   text-align: center;
   margin: 16px 0 8px 0;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
-  animation: endingSlideIn 0.6s ease-out;
 }
 
-@keyframes endingSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 分析内容段落容器 */
+/* 分析内容段落容器 - 简化样式提升性能 */
 .message-content :deep(.analysis-section) {
   margin: 10px 0;
   padding: 12px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
+  background: rgba(102, 126, 234, 0.03);
   border-radius: 12px;
   border: 1px solid rgba(102, 126, 234, 0.15);
 }
@@ -2152,9 +2043,9 @@ onUnmounted(() => {
   gap: 6px;
 }
 
-/* 高亮盒子 */
+/* 高亮盒子 - 简化渐变 */
 .message-content :deep(.analysis-highlight-box) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(147, 51, 234, 0.08));
+  background: rgba(102, 126, 234, 0.08);
   padding: 12px;
   border-radius: 10px;
   border-left: 4px solid #667eea;
@@ -2212,14 +2103,12 @@ onUnmounted(() => {
   background: rgba(248, 250, 252, 0.8);
   border-radius: 6px;
   border: 1px solid rgba(226, 232, 240, 0.6);
-  transition: all 0.3s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .message-content :deep(.analysis-item:hover) {
   background: white;
   border-color: rgba(102, 126, 234, 0.3);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .message-content :deep(.analysis-item.full-width) {
@@ -2272,17 +2161,15 @@ onUnmounted(() => {
 
 .message-content :deep(.analysis-metric-item) {
   padding: 12px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+  background: rgba(248, 250, 252, 0.9);
   border-radius: 10px;
   border: 1px solid rgba(226, 232, 240, 0.8);
-  transition: all 0.3s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .message-content :deep(.analysis-metric-item:hover) {
   background: white;
   border-color: rgba(102, 126, 234, 0.4);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-  transform: translateX(4px);
 }
 
 .message-content :deep(.metric-name) {
@@ -2310,19 +2197,19 @@ onUnmounted(() => {
 }
 
 .message-content :deep(.metric-ranking.ranking-good) {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15));
+  background: rgba(16, 185, 129, 0.15);
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #059669;
 }
 
 .message-content :deep(.metric-ranking.ranking-bad) {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.15));
+  background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #dc2626;
 }
 
 .message-content :deep(.metric-ranking.ranking-normal) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1));
+  background: rgba(59, 130, 246, 0.1);
   border: 1px solid rgba(59, 130, 246, 0.2);
   color: #2563eb;
 }
@@ -2350,17 +2237,15 @@ onUnmounted(() => {
 .message-content :deep(.future-estimate-item) {
   padding: 10px 12px;
   margin: 6px 0;
-  background: linear-gradient(90deg, rgba(124, 58, 237, 0.05), rgba(147, 51, 234, 0.05));
+  background: rgba(124, 58, 237, 0.05);
   border-left: 3px solid #7c3aed;
   border-radius: 6px;
   font-size: 13px;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease;
 }
 
 .message-content :deep(.future-estimate-item:hover) {
-  background: linear-gradient(90deg, rgba(124, 58, 237, 0.1), rgba(147, 51, 234, 0.1));
-  transform: translateX(6px);
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+  background: rgba(124, 58, 237, 0.1);
 }
 
 .message-content :deep(.estimate-date) {
@@ -2398,15 +2283,13 @@ onUnmounted(() => {
 
 .message-content :deep(.range-card) {
   padding: 14px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+  background: rgba(248, 250, 252, 0.95);
   border-radius: 10px;
   border: 1px solid rgba(102, 126, 234, 0.2);
-  transition: all 0.3s ease;
+  transition: border-color 0.2s ease;
 }
 
 .message-content :deep(.range-card:hover) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
   border-color: rgba(102, 126, 234, 0.4);
 }
 
@@ -2501,15 +2384,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  background: linear-gradient(135deg, rgba(254, 243, 199, 0.4) 0%, rgba(253, 230, 138, 0.4) 100%);
+  background: rgba(254, 243, 199, 0.4);
   border: 1px solid rgba(251, 191, 36, 0.3);
   border-radius: 10px;
-  transition: all 0.3s ease;
+  transition: border-color 0.2s ease;
 }
 
 .message-content :deep(.growth-metric-card:hover) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
   border-color: rgba(251, 191, 36, 0.5);
 }
 
@@ -2589,4 +2470,5 @@ onUnmounted(() => {
   }
 }
 </style>
+
 
