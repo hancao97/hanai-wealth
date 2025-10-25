@@ -837,11 +837,14 @@ const outputPrompt = () => {
   })
   
   nextTick(() => {
-    scrollToBottom(true)
     // 为 Prompt 消息添加复制按钮
     // 使用延迟确保 DOM 已完全渲染
     setTimeout(() => {
       addCopyButtonToPrompt()
+      // 按钮添加完成后再滚动到底部
+      nextTick(() => {
+        scrollToBottom(true)
+      })
     }, 100)
   })
 }
