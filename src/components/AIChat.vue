@@ -1096,7 +1096,7 @@ const callKimiAPI = async (prompt, messageIndex) => {
     const reader = response.body.getReader()
     const decoder = new TextDecoder('utf-8')
     let buffer = ''
-    let displayedContent = '🤖 HANAI 正在分析中...\n\n' // 已显示的内容
+    let displayedContent = '🤖 HANAI 价值分析\n\n' // 已显示的内容
     let pendingContent = '' // 待显示的内容缓冲区
     let isTyping = false // 是否正在打字
     
