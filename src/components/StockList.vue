@@ -1214,6 +1214,9 @@ const handleResize = () => {
 
 // 生命周期
 onMounted(async () => {
+  // 设置列表页标题
+  document.title = 'HANAI · WEALTH - 智能股票价值分析'
+  
   await loadDatesConfig()
   await initCharts()
   window.addEventListener('resize', handleResize)
