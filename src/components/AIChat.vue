@@ -91,7 +91,10 @@
 
         <!-- 分析按钮区域 -->
         <div class="analysis-actions">
+          <!-- 初始状态：价值分析按钮 -->
+          <transition name="btn-fade">
           <button 
+              v-if="!analysisCompleted"
             @click="startValueAnalysis" 
             class="analysis-btn"
             :disabled="isLoading"
@@ -102,7 +105,30 @@
               <span class="btn-subtitle">深度解读投资价值</span>
             </span>
             <span class="btn-arrow">→</span>
+            </button>
+          </transition>
+
+          <!-- 分析完成后：两个按钮 -->
+          <transition name="dual-fade">
+            <div v-if="analysisCompleted" class="dual-actions">
+              <button 
+                @click="outputPrompt" 
+                class="action-btn prompt-btn"
+                :disabled="isLoading"
+              >
+                <span class="btn-icon">📋</span>
+                <span class="btn-text">输出 Prompt</span>
+              </button>
+              <button 
+                @click="hanaiAnalysis" 
+                class="action-btn hanai-btn"
+                :disabled="isLoading"
+              >
+                <span class="btn-icon">🤖</span>
+                <span class="btn-text">HANAI 分析</span>
           </button>
+            </div>
+          </transition>
         </div>
       </div>
     </transition>
@@ -138,6 +164,7 @@ const isLoading = ref(false)
 const messagesContainer = ref(null)
 const inputTextarea = ref(null)
 const showPulse = ref(true)
+const analysisCompleted = ref(false) // 价值分析是否完成
 
 // 性能优化：限制消息数量，避免DOM过多
 const MAX_MESSAGES = 50
@@ -745,7 +772,285 @@ const displayValueAnalysis = async () => {
     if (messagesContainer.value) {
       messagesContainer.value.classList.remove('typing')
     }
+    
+    // 标记分析完成，显示两个按钮
+    analysisCompleted.value = true
   }
+}
+
+// 输出 Prompt
+const outputPrompt = () => {
+  if (isLoading.value) return
+  
+  const promptMessage = {
+    role: 'user',
+    content: '输出 Prompt',
+    timestamp: getCurrentTime()
+  }
+  
+  addMessage(promptMessage)
+  
+  // 生成 Prompt 内容
+  const promptContent = generatePromptContent()
+  
+  addMessage({
+    role: 'assistant',
+    content: promptContent,
+    timestamp: getCurrentTime()
+  })
+  
+  nextTick(() => {
+    scrollToBottom(true)
+  })
+}
+
+// HANAI 分析
+const hanaiAnalysis = () => {
+  if (isLoading.value) return
+  
+  const hanaiMessage = {
+    role: 'user',
+    content: 'HANAI 分析',
+    timestamp: getCurrentTime()
+  }
+  
+  addMessage(hanaiMessage)
+  
+  addMessage({
+    role: 'assistant',
+    content: '🤖 HANAI 正在为您进行深度分析，请稍候...\n\n💡 此功能需要连接 AI 服务，请在此处添加您的分析逻辑。',
+    timestamp: getCurrentTime()
+  })
+  
+  nextTick(() => {
+    scrollToBottom(true)
+  })
+}
+
+// 生成完整的 Prompt 内容（包含所有价值分析信息）
+const generatePromptContent = () => {
+  if (!props.stockData) return '暂无数据'
+  
+  const stock = props.stockData
+  const date = props.currentDate
+  const companyName = stock.company || 'N/A'
+  
+  // 处理带 ¥ 符号的价格
+  const parsePriceValue = (value) => {
+    if (!value || value === '--') return null
+    const numStr = String(value).replace(/[¥,]/g, '').trim()
+    const num = parseFloat(numStr)
+    return !isNaN(num) ? num : null
+  }
+  
+  let prompt = `<div class="prompt-content">`
+  prompt += `<div class="prompt-title">📋 完整投资分析 Prompt</div>`
+  prompt += `<div class="prompt-text">`
+  
+  // ========== 引导语 ==========
+  prompt += `请作为一名资深的价值投资分析师，基于以下详细数据对【${companyName}】这只股票进行深度分析：\n\n`
+  prompt += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`
+  
+  // ========== 一、基础信息 ==========
+  prompt += `## 一、公司基础信息\n\n`
+  prompt += `**公司名称**: ${companyName}\n`
+  prompt += `**交易代码**: ${stock.exchange_ || ''}:${stock.symbol || 'N/A'}\n`
+  prompt += `**所属板块**: ${stock.board || '主板'}\n`
+  prompt += `**所属行业**: ${stock.industry || 'N/A'}\n`
+  prompt += `**所属板组**: ${stock.group || 'N/A'}\n`
+  prompt += `**总市值**: ${formatMarketCap(stock.mktcap_norm_currency)}\n\n`
+  
+  // ========== 二、股价信息 ==========
+  prompt += `## 二、股价信息\n\n`
+  
+  // 当前股价
+  const currentPrice = parsePriceValue(stock.price)
+  if (currentPrice) {
+    prompt += `**当日股价** (${date}): ¥${currentPrice.toFixed(2)}\n`
+  }
+  
+  // 最新股价（如果有图表数据）
+  if (props.valuationChartRef?.currentPrice) {
+    const todayPrice = parsePriceValue(props.valuationChartRef.currentPrice)
+    if (todayPrice) {
+      const today = new Date().toISOString().split('T')[0]
+      prompt += `**最新股价** (${today}): ¥${todayPrice.toFixed(2)}\n`
+    }
+  }
+  
+  // 10年股价区间
+  const priceLow = parsePriceValue(stock.price10ylow)
+  const priceHigh = parsePriceValue(stock.price10yhigh)
+  if (currentPrice && priceLow && priceHigh && priceHigh > priceLow) {
+    const position = ((currentPrice - priceLow) / (priceHigh - priceLow) * 100).toFixed(1)
+    prompt += `**10年股价区间**: ¥${priceLow.toFixed(2)} - ¥${priceHigh.toFixed(2)}\n`
+    prompt += `**当前位置**: ${position}% (在10年区间中的位置)\n`
+  }
+  prompt += `\n`
+  
+  // ========== 三、估值指标 ==========
+  prompt += `## 三、估值指标\n\n`
+  
+  // PE 指标
+  const pettm = stock.pettm && !isNaN(stock.pettm) && stock.pettm > 0 ? parseFloat(stock.pettm) : null
+  const peLow = stock.pettmlow && !isNaN(stock.pettmlow) && stock.pettmlow > 0 ? parseFloat(stock.pettmlow) : null
+  const peHigh = stock.pettmhigh && !isNaN(stock.pettmhigh) && stock.pettmhigh > 0 ? parseFloat(stock.pettmhigh) : null
+  
+  if (pettm) {
+    prompt += `**市盈率 (PE TTM)**: ${pettm.toFixed(2)}\n`
+    if (peLow && peHigh && peHigh > peLow) {
+      const pePosition = ((pettm - peLow) / (peHigh - peLow) * 100).toFixed(1)
+      prompt += `- 10年PE区间: ${peLow.toFixed(2)} - ${peHigh.toFixed(2)}\n`
+      prompt += `- 当前PE位置: ${pePosition}% (在10年区间中)\n`
+    }
+  }
+  
+  // 其他估值指标
+  if (stock.pb && !isNaN(stock.pb) && stock.pb > 0) {
+    prompt += `**市净率 (PB)**: ${parseFloat(stock.pb).toFixed(2)}\n`
+  }
+  
+  // 估值数据
+  if (props.valuationChartRef?.currentValue) {
+    const todayValue = parsePriceValue(props.valuationChartRef.currentValue)
+    if (todayValue) {
+      const today = new Date().toISOString().split('T')[0]
+      prompt += `**价值大师估值** (${today}): ¥${todayValue.toFixed(2)}\n`
+    }
+  }
+  prompt += `\n`
+  
+  // ========== 四、盈利能力指标 ==========
+  prompt += `## 四、盈利能力指标\n\n`
+  
+  if (stock.roe && !isNaN(stock.roe) && stock.roe > 0) {
+    prompt += `**ROE (净资产收益率)**: ${parseFloat(stock.roe).toFixed(2)}%\n`
+  }
+  if (stock.grossmargin && !isNaN(stock.grossmargin) && stock.grossmargin > 0) {
+    prompt += `**毛利率**: ${parseFloat(stock.grossmargin).toFixed(2)}%\n`
+  }
+  if (stock.net_margain && !isNaN(stock.net_margain) && stock.net_margain > 0) {
+    prompt += `**净利率**: ${parseFloat(stock.net_margain).toFixed(2)}%\n`
+  }
+  if (stock.yield && !isNaN(stock.yield) && stock.yield > 0) {
+    prompt += `**股息率**: ${parseFloat(stock.yield).toFixed(2)}%\n`
+  }
+  prompt += `\n`
+  
+  // ========== 五、成长性指标 ==========
+  prompt += `## 五、成长性指标\n\n`
+  
+  if (stock.total_free_cash_flow && !isNaN(stock.total_free_cash_flow) && stock.total_free_cash_flow > 0) {
+    prompt += `**自由现金流**: ${formatFCF(stock.total_free_cash_flow)}\n`
+  }
+  if (stock.total_netincome_growth_10y !== null && !isNaN(stock.total_netincome_growth_10y)) {
+    prompt += `**10年净利润增长率**: ${parseFloat(stock.total_netincome_growth_10y).toFixed(2)}%\n`
+  }
+  if (stock.pchange_10y !== null && !isNaN(stock.pchange_10y)) {
+    prompt += `**10年股价年化回报**: ${parseFloat(stock.pchange_10y).toFixed(2)}%\n`
+  }
+  prompt += `\n`
+  
+  // ========== 六、五维评级 ==========
+  const hasRatings = stock.rank_gf_value || stock.rank_growth || stock.rank_momentum || 
+                     stock.rank_profitability || stock.rank_balancesheet || stock.gf_score
+  
+  if (hasRatings) {
+    prompt += `## 六、综合评级 (价值大师)\n\n`
+    
+    if (stock.rank_gf_value) {
+      prompt += `**价值评级**: ${getRankValue(stock.rank_gf_value)}/10\n`
+    }
+    if (stock.rank_growth) {
+      prompt += `**成长能力**: ${getRankValue(stock.rank_growth)}/10\n`
+    }
+    if (stock.rank_momentum) {
+      prompt += `**价值动量**: ${getRankValue(stock.rank_momentum)}/10\n`
+    }
+    if (stock.rank_profitability) {
+      prompt += `**盈利能力**: ${getRankValue(stock.rank_profitability)}/10\n`
+    }
+    if (stock.rank_balancesheet) {
+      prompt += `**财务实力**: ${getRankValue(stock.rank_balancesheet)}/10\n`
+    }
+    
+    const gfScore = stock.gf_score && stock.gf_score > 0 ? Math.round(stock.gf_score) : 0
+    if (gfScore > 0) {
+      prompt += `**综合评分**: ${gfScore}/100\n`
+    }
+    prompt += `\n`
+  }
+  
+  // ========== 七、行业对比 ==========
+  if (stock.industry && props.allStocksData && props.allStocksData.length > 0) {
+    prompt += `## 七、行业对比分析\n\n`
+    prompt += `**所属行业**: ${stock.industry}\n\n`
+    
+    // 计算关键指标的行业排名
+    const metrics = []
+    
+    if (stock.roe && !isNaN(stock.roe) && stock.roe > 0) {
+      const ranking = calculateMetricRanking('roe', stock.roe, true)
+      if (ranking) {
+        metrics.push(`- **ROE排名**: ${ranking.rank}/${ranking.total} (前${ranking.percentage}%)，行业平均: ${ranking.industryAvg}%`)
+      }
+    }
+    
+    if (stock.grossmargin && !isNaN(stock.grossmargin) && stock.grossmargin > 0) {
+      const ranking = calculateMetricRanking('grossmargin', stock.grossmargin, true)
+      if (ranking) {
+        metrics.push(`- **毛利率排名**: ${ranking.rank}/${ranking.total} (前${ranking.percentage}%)，行业平均: ${ranking.industryAvg}%`)
+      }
+    }
+    
+    if (stock.pettm && !isNaN(stock.pettm) && stock.pettm > 0) {
+      const ranking = calculateMetricRanking('pettm', stock.pettm, false)
+      if (ranking) {
+        metrics.push(`- **PE排名**: ${ranking.rank}/${ranking.total} (前${ranking.percentage}%)，行业平均: ${ranking.industryAvg}`)
+      }
+    }
+    
+    if (metrics.length > 0) {
+      prompt += metrics.join('\n') + '\n\n'
+    }
+  }
+  
+  // ========== 八、分析要求 ==========
+  prompt += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`
+  prompt += `## 八、请从以下维度进行深度分析：\n\n`
+  prompt += `1. **基本面分析**\n`
+  prompt += `   - 公司业务模式和竞争优势\n`
+  prompt += `   - 行业地位和市场份额\n`
+  prompt += `   - 护城河分析\n\n`
+  
+  prompt += `2. **财务健康度**\n`
+  prompt += `   - 盈利能力评估（ROE、毛利率、净利率）\n`
+  prompt += `   - 现金流状况\n`
+  prompt += `   - 成长性分析\n\n`
+  
+  prompt += `3. **估值水平判断**\n`
+  prompt += `   - 当前PE/PB是否合理\n`
+  prompt += `   - 与历史估值对比\n`
+  prompt += `   - 与行业平均对比\n`
+  prompt += `   - 安全边际分析\n\n`
+  
+  prompt += `4. **投资价值建议**\n`
+  prompt += `   - 是否值得投资\n`
+  prompt += `   - 合理买入价格区间\n`
+  prompt += `   - 预期收益率\n`
+  prompt += `   - 投资时间跨度建议\n\n`
+  
+  prompt += `5. **风险提示**\n`
+  prompt += `   - 行业风险\n`
+  prompt += `   - 公司特定风险\n`
+  prompt += `   - 估值风险\n`
+  prompt += `   - 需要重点关注的指标\n\n`
+  
+  prompt += `请提供详细、专业的分析意见，帮助做出投资决策。`
+  
+  prompt += `</div></div>`
+  
+  return prompt
 }
 
 // 生成股价信息（第一段）
@@ -830,18 +1135,76 @@ const generateValueInfo = () => {
     return !isNaN(num) ? num : null
   }
   
-  // 从 ValuationChart ref 获取当日最新价值（这是从图表来的当日数据）
+  // 从 ValuationChart ref 获取数据
   let todayValue = null
+  let todayPrice = null
+  let statusText = '--'
+  let maxDeviation = null
+  let minDeviation = null
+  
   if (props.valuationChartRef?.currentValue) {
-    const valueVal = props.valuationChartRef.currentValue
-    todayValue = parsePriceValue(valueVal)
+    todayValue = parsePriceValue(props.valuationChartRef.currentValue)
+  }
+  
+  if (props.valuationChartRef?.currentPrice) {
+    todayPrice = parsePriceValue(props.valuationChartRef.currentPrice)
+  }
+  
+  if (props.valuationChartRef?.statusText) {
+    statusText = props.valuationChartRef.statusText
+  }
+  
+  if (props.valuationChartRef?.maxDeviation) {
+    maxDeviation = props.valuationChartRef.maxDeviation
+  }
+  
+  if (props.valuationChartRef?.minDeviation) {
+    minDeviation = props.valuationChartRef.minDeviation
   }
   
   let info = '<div class="analysis-section">'
   info += '<div class="analysis-title">💎 估值评估数据</div>'
   
-  // 显示当日最新估值（来自价值曲线图）
-  if (todayValue !== null) {
+  // 显示当日最新估值与股价对比
+  if (todayValue !== null && todayPrice !== null) {
+    const today = new Date().toISOString().split('T')[0]
+    
+    // 计算偏离度
+    const deviation = ((todayPrice - todayValue) / todayValue * 100)
+    const deviationText = deviation > 0 
+      ? `+${deviation.toFixed(1)}%` 
+      : `${deviation.toFixed(1)}%`
+    
+    // 判断状态颜色
+    let statusClass = 'status-fair'
+    const ratio = todayPrice / todayValue
+    if (ratio >= 1.3) statusClass = 'status-overvalued-severe'
+    else if (ratio >= 1.1) statusClass = 'status-overvalued'
+    else if (ratio >= 0.9) statusClass = 'status-fair'
+    else if (ratio >= 0.7) statusClass = 'status-undervalued'
+    else statusClass = 'status-undervalued-severe'
+    
+    info += `<div class="analysis-highlight-box">`
+    info += `<div class="highlight-text">【${companyName}】当日价值评估（${today}）</div>`
+    info += `<div class="valuation-comparison">`
+    info += `  <div class="comparison-row">`
+    info += `    <div class="comparison-item">`
+    info += `      <span class="comparison-label">当前股价</span>`
+    info += `      <span class="comparison-value price-value">¥${todayPrice.toFixed(2)}</span>`
+    info += `    </div>`
+    info += `    <div class="comparison-divider">vs</div>`
+    info += `    <div class="comparison-item">`
+    info += `      <span class="comparison-label">估值价值</span>`
+    info += `      <span class="comparison-value value-value">¥${todayValue.toFixed(2)}</span>`
+    info += `    </div>`
+    info += `  </div>`
+    info += `  <div class="comparison-status ${statusClass}">`
+    info += `    <span class="status-badge">${statusText}</span>`
+    info += `    <span class="deviation-text">偏离 ${deviationText}</span>`
+    info += `  </div>`
+    info += `</div>`
+    info += `</div>`
+  } else if (todayValue !== null) {
     const today = new Date().toISOString().split('T')[0]
     info += `<div class="analysis-highlight-box">`
     info += `<div class="highlight-text">【${companyName}】当日最新估值（${today}）：<span class="value-highlight">¥${todayValue.toFixed(2)}</span></div>`
@@ -850,6 +1213,55 @@ const generateValueInfo = () => {
     info += `<div class="analysis-highlight-box">`
     info += `<div class="highlight-text">【${companyName}】当前暂无估值数据</div>`
     info += `</div>`
+  }
+  
+  // 历史价值偏离统计
+  if (maxDeviation && minDeviation && maxDeviation.percentage !== '--' && minDeviation.percentage !== '--') {
+    info += '<div class="analysis-subsection">'
+    info += '<div class="analysis-subtitle">📊 历史价值偏离统计</div>'
+    info += '<div class="deviation-stats-grid">'
+    
+    // 最大高估
+    info += `<div class="deviation-card deviation-max">`
+    info += `  <div class="deviation-header">`
+    info += `    <span class="deviation-icon">🔥</span>`
+    info += `    <span class="deviation-title">最大高估</span>`
+    info += `  </div>`
+    info += `  <div class="deviation-percentage">${maxDeviation.percentage}</div>`
+    info += `  <div class="deviation-date">📅 ${maxDeviation.date}</div>`
+    info += `  <div class="deviation-details">`
+    info += `    <div class="detail-row">`
+    info += `      <span class="detail-label">当日股价</span>`
+    info += `      <span class="detail-value">¥${maxDeviation.price}</span>`
+    info += `    </div>`
+    info += `    <div class="detail-row">`
+    info += `      <span class="detail-label">当日价值</span>`
+    info += `      <span class="detail-value">¥${maxDeviation.value}</span>`
+    info += `    </div>`
+    info += `  </div>`
+    info += `</div>`
+    
+    // 最大低估
+    info += `<div class="deviation-card deviation-min">`
+    info += `  <div class="deviation-header">`
+    info += `    <span class="deviation-icon">💎</span>`
+    info += `    <span class="deviation-title">最大低估</span>`
+    info += `  </div>`
+    info += `  <div class="deviation-percentage">${minDeviation.percentage}</div>`
+    info += `  <div class="deviation-date">📅 ${minDeviation.date}</div>`
+    info += `  <div class="deviation-details">`
+    info += `    <div class="detail-row">`
+    info += `      <span class="detail-label">当日股价</span>`
+    info += `      <span class="detail-value">¥${minDeviation.price}</span>`
+    info += `    </div>`
+    info += `    <div class="detail-row">`
+    info += `      <span class="detail-label">当日价值</span>`
+    info += `      <span class="detail-value">¥${minDeviation.value}</span>`
+    info += `    </div>`
+    info += `  </div>`
+    info += `</div>`
+    
+    info += '</div></div>'
   }
   
   // 未来价值预估
@@ -903,8 +1315,8 @@ const scrollToBottom = (immediate = false) => {
     if (scrollTimer) return
     
     scrollTimer = setTimeout(() => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
       }
       scrollTimer = null
     }, 100)
@@ -1198,7 +1610,7 @@ onUnmounted(() => {
 }
 
 .ai-chat-fab:hover .fab-glow {
-  opacity: 0.8;
+    opacity: 0.8;
 }
 
 /* 按下效果 */
@@ -1562,7 +1974,7 @@ onUnmounted(() => {
 .loading-bubble {
   padding: 16px 20px;
   background: rgba(102, 126, 234, 0.05);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   /* 移除脉冲动画 */
 }
 
@@ -1720,6 +2132,7 @@ onUnmounted(() => {
 /* 主分析按钮 */
 .analysis-btn {
   width: 100%;
+  min-height: 60px;
   padding: 12px 16px;
   border: none;
   border-radius: 12px;
@@ -1828,6 +2241,161 @@ onUnmounted(() => {
 
 .analysis-btn:hover:not(:disabled) .btn-arrow {
   transform: translateX(4px);
+}
+
+/* 按钮容器统一高度 */
+.analysis-actions {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+}
+
+/* 按钮切换动画 - 简洁优雅 */
+.btn-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.btn-fade-leave-active {
+  transition: all 0.25s ease-in;
+}
+
+.btn-fade-enter-from,
+.btn-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.btn-fade-enter-to,
+.btn-fade-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 双按钮淡入动画 - 简洁优雅 */
+.dual-fade-enter-active {
+  transition: all 0.35s ease-out;
+  transition-delay: 0.15s;
+}
+
+.dual-fade-leave-active {
+  transition: all 0.25s ease-in;
+}
+
+.dual-fade-enter-from,
+.dual-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.dual-fade-enter-to,
+.dual-fade-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 双按钮布局 */
+.dual-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 操作按钮（输出 Prompt 和 HANAI 分析）*/
+.action-btn {
+  flex: 1;
+  min-height: 60px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 输出 Prompt 按钮 */
+.prompt-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.prompt-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%);
+  transition: left 0.5s ease;
+}
+
+.prompt-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+}
+
+.prompt-btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+/* HANAI 分析按钮 */
+.hanai-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.hanai-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%);
+  transition: left 0.5s ease;
+}
+
+.hanai-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+}
+
+.hanai-btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.action-btn:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.action-btn .btn-icon {
+  font-size: 18px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.action-btn .btn-text {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
 }
 
 /* 抽屉滑入滑出动画 */
@@ -2088,6 +2656,197 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.6;
   color: #475569;
+}
+
+/* 估值对比样式 */
+.message-content :deep(.valuation-comparison) {
+  margin-top: 12px;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(102, 126, 234, 0.15);
+}
+
+.message-content :deep(.comparison-row) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.message-content :deep(.comparison-item) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.message-content :deep(.comparison-label) {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.message-content :deep(.comparison-value) {
+  font-size: 20px;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.message-content :deep(.price-value) {
+  color: #3b82f6;
+}
+
+.message-content :deep(.value-value) {
+  color: #8b5cf6;
+}
+
+.message-content :deep(.comparison-divider) {
+  font-size: 14px;
+  color: #94a3b8;
+  font-weight: 600;
+  padding: 0 8px;
+}
+
+.message-content :deep(.comparison-status) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.message-content :deep(.status-badge) {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+
+.message-content :deep(.deviation-text) {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* 状态颜色 */
+.message-content :deep(.status-overvalued-severe .status-badge) {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.message-content :deep(.status-overvalued .status-badge) {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+}
+
+.message-content :deep(.status-fair .status-badge) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.message-content :deep(.status-undervalued .status-badge) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.message-content :deep(.status-undervalued-severe .status-badge) {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+/* 历史偏离统计卡片 */
+.message-content :deep(.deviation-stats-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.message-content :deep(.deviation-card) {
+  padding: 14px;
+  border-radius: 10px;
+  border: 2px solid;
+  background: rgba(255, 255, 255, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.message-content :deep(.deviation-card:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.message-content :deep(.deviation-max) {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%);
+}
+
+.message-content :deep(.deviation-min) {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%);
+}
+
+.message-content :deep(.deviation-header) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.message-content :deep(.deviation-icon) {
+  font-size: 18px;
+}
+
+.message-content :deep(.deviation-title) {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.message-content :deep(.deviation-percentage) {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.message-content :deep(.deviation-max .deviation-percentage) {
+  color: #ef4444;
+}
+
+.message-content :deep(.deviation-min .deviation-percentage) {
+  color: #8b5cf6;
+}
+
+.message-content :deep(.deviation-date) {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.message-content :deep(.deviation-details) {
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.message-content :deep(.detail-row) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.message-content :deep(.detail-label) {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.message-content :deep(.detail-value) {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
 }
 
 /* 数据网格 */
@@ -2426,6 +3185,32 @@ onUnmounted(() => {
   color: #ef4444;
 }
 
+/* Prompt 内容样式 */
+.message-content :deep(.prompt-content) {
+  margin: 10px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.08));
+  border-radius: 12px;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+}
+
+.message-content :deep(.prompt-title) {
+  font-size: 16px;
+  font-weight: 700;
+  color: #d97706;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(245, 158, 11, 0.2);
+}
+
+.message-content :deep(.prompt-text) {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #78350f;
+  white-space: pre-wrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 /* 响应式 - 移动端适配 */
 @media (max-width: 1200px) {
   .message-content :deep(.analysis-data-grid) {
@@ -2467,6 +3252,33 @@ onUnmounted(() => {
   
   .message-content :deep(.metric-value) {
     font-size: 15px;
+  }
+  
+  /* 移动端估值对比样式 */
+  .message-content :deep(.valuation-comparison) {
+    padding: 12px;
+  }
+  
+  .message-content :deep(.comparison-row) {
+    gap: 12px;
+  }
+  
+  .message-content :deep(.comparison-value) {
+    font-size: 18px;
+  }
+  
+  /* 移动端历史偏离统计 */
+  .message-content :deep(.deviation-stats-grid) {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .message-content :deep(.deviation-card) {
+    padding: 12px;
+  }
+  
+  .message-content :deep(.deviation-percentage) {
+    font-size: 20px;
   }
 }
 </style>

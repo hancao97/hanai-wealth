@@ -901,6 +901,9 @@ onUnmounted(() => {
 defineExpose({
   currentPrice,
   currentValue,
+  maxDeviation,
+  minDeviation,
+  statusText,
   chartData: chartDataStore,
   medpsData: medpsDataStore,
   priceData: priceDataStore
