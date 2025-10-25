@@ -778,6 +778,41 @@ const displayValueAnalysis = async () => {
   }
 }
 
+// 提取纯文本内容（去除 HTML 标签）
+const extractPlainText = (html) => {
+  // 创建临时 div 元素
+  const temp = document.createElement('div')
+  temp.innerHTML = html
+  return temp.textContent || temp.innerText || ''
+}
+
+// 复制到剪贴板
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch (err) {
+    console.error('复制失败:', err)
+    // 降级方案：使用旧的 API
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      return successful
+    } catch (err2) {
+      console.error('降级复制也失败:', err2)
+      return false
+    }
+  }
+}
+
 // 输出 Prompt
 const outputPrompt = () => {
   if (isLoading.value) return
@@ -793,14 +828,138 @@ const outputPrompt = () => {
   // 生成 Prompt 内容
   const promptContent = generatePromptContent()
   
+  // 添加带有复制按钮的 Prompt 消息
   addMessage({
     role: 'assistant',
     content: promptContent,
-    timestamp: getCurrentTime()
+    timestamp: getCurrentTime(),
+    hasPromptContent: true  // 标记这是 Prompt 消息
   })
   
   nextTick(() => {
     scrollToBottom(true)
+    // 为 Prompt 消息添加复制按钮
+    // 使用延迟确保 DOM 已完全渲染
+    setTimeout(() => {
+      addCopyButtonToPrompt()
+    }, 100)
+  })
+}
+
+// 为 Prompt 消息添加复制按钮
+const addCopyButtonToPrompt = () => {
+  if (!messagesContainer.value) return
+  
+  // 找到所有没有添加按钮的 prompt-content
+  const promptContents = messagesContainer.value.querySelectorAll('.prompt-content')
+  
+  promptContents.forEach(promptContent => {
+    // 如果已经有按钮了，跳过
+    if (promptContent.querySelector('.prompt-actions')) return
+    
+    // 创建按钮容器
+    const actionsDiv = document.createElement('div')
+    actionsDiv.className = 'prompt-actions'
+    
+    // 获取 Prompt 文本（用于自动复制和跳转）
+    const getPromptText = () => {
+      const promptText = promptContent.querySelector('.prompt-text')
+      return promptText ? (promptText.textContent || promptText.innerText || '') : ''
+    }
+    
+    // 创建复制按钮
+    const copyBtn = document.createElement('button')
+    copyBtn.className = 'prompt-copy-btn'
+    copyBtn.innerHTML = `
+      <span class="copy-btn-icon">📋</span>
+      <span class="copy-btn-text">复制到剪贴板</span>
+    `
+    
+    // 复制按钮点击事件
+    copyBtn.addEventListener('click', async () => {
+      const plainText = getPromptText()
+      const success = await copyToClipboard(plainText)
+      
+      const btnText = copyBtn.querySelector('.copy-btn-text')
+      const btnIcon = copyBtn.querySelector('.copy-btn-icon')
+      
+      if (success) {
+        const originalText = btnText.textContent
+        const originalIcon = btnIcon.textContent
+        
+        btnText.textContent = '已复制！'
+        btnIcon.textContent = '✅'
+        copyBtn.classList.add('copied')
+        
+        setTimeout(() => {
+          btnText.textContent = originalText
+          btnIcon.textContent = originalIcon
+          copyBtn.classList.remove('copied')
+        }, 2000)
+      } else {
+        btnText.textContent = '复制失败'
+        btnIcon.textContent = '❌'
+        
+        setTimeout(() => {
+          btnText.textContent = '复制到剪贴板'
+          btnIcon.textContent = '📋'
+        }, 2000)
+      }
+    })
+    
+    // 创建快捷跳转按钮组
+    const quickLinksDiv = document.createElement('div')
+    quickLinksDiv.className = 'prompt-quick-links'
+    
+    // ChatGPT 按钮
+    const chatgptBtn = document.createElement('a')
+    chatgptBtn.href = 'https://chat.openai.com/'
+    chatgptBtn.target = '_blank'
+    chatgptBtn.className = 'quick-link-btn chatgpt-btn'
+    chatgptBtn.innerHTML = `
+      <span class="quick-link-icon">🤖</span>
+      <span class="quick-link-text">ChatGPT(推荐)</span>
+    `
+    chatgptBtn.addEventListener('click', async (e) => {
+      // 点击前自动复制
+      await copyToClipboard(getPromptText())
+    })
+    
+    // DeepSeek 按钮
+    const deepseekBtn = document.createElement('a')
+    deepseekBtn.href = 'https://chat.deepseek.com/'
+    deepseekBtn.target = '_blank'
+    deepseekBtn.className = 'quick-link-btn deepseek-btn'
+    deepseekBtn.innerHTML = `
+      <span class="quick-link-icon">🔍</span>
+      <span class="quick-link-text">DeepSeek</span>
+    `
+    deepseekBtn.addEventListener('click', async (e) => {
+      // 点击前自动复制
+      await copyToClipboard(getPromptText())
+    })
+    
+    // Kimi 按钮
+    const kimiBtn = document.createElement('a')
+    kimiBtn.href = 'https://kimi.moonshot.cn/'
+    kimiBtn.target = '_blank'
+    kimiBtn.className = 'quick-link-btn kimi-btn'
+    kimiBtn.innerHTML = `
+      <span class="quick-link-icon">🌙</span>
+      <span class="quick-link-text">Kimi</span>
+    `
+    kimiBtn.addEventListener('click', async (e) => {
+      // 点击前自动复制
+      await copyToClipboard(getPromptText())
+    })
+    
+    quickLinksDiv.appendChild(chatgptBtn)
+    quickLinksDiv.appendChild(deepseekBtn)
+    quickLinksDiv.appendChild(kimiBtn)
+    
+    actionsDiv.appendChild(copyBtn)
+    actionsDiv.appendChild(quickLinksDiv)
+    promptContent.appendChild(actionsDiv)
   })
 }
 
@@ -827,7 +986,7 @@ const hanaiAnalysis = () => {
   })
 }
 
-// 生成完整的 Prompt 内容（包含所有价值分析信息）
+// 生成完整的 Prompt 内容（按照模板格式）
 const generatePromptContent = () => {
   if (!props.stockData) return '暂无数据'
   
@@ -844,37 +1003,37 @@ const generatePromptContent = () => {
   }
   
   let prompt = `<div class="prompt-content">`
-  prompt += `<div class="prompt-title">📋 完整投资分析 Prompt</div>`
+  prompt += `<div class="prompt-title">📋 ${companyName} 价值分析数据</div>`
   prompt += `<div class="prompt-text">`
   
-  // ========== 引导语 ==========
-  prompt += `请作为一名资深的价值投资分析师，基于以下详细数据对【${companyName}】这只股票进行深度分析：\n\n`
-  prompt += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`
+  // ========== 开场白 ==========
+  prompt += `您是一位资深的投资者，请您对【${companyName}】进行深入的价值分析。以下是该公司的详细数据，请基于这些信息给出您的专业判断和投资建议，对价值大师网提供的估值信息进行评价并给出确定的目标价位。\n\n`
+  prompt += `---\n\n`
   
-  // ========== 一、基础信息 ==========
-  prompt += `## 一、公司基础信息\n\n`
-  prompt += `**公司名称**: ${companyName}\n`
-  prompt += `**交易代码**: ${stock.exchange_ || ''}:${stock.symbol || 'N/A'}\n`
-  prompt += `**所属板块**: ${stock.board || '主板'}\n`
-  prompt += `**所属行业**: ${stock.industry || 'N/A'}\n`
-  prompt += `**所属板组**: ${stock.group || 'N/A'}\n`
-  prompt += `**总市值**: ${formatMarketCap(stock.mktcap_norm_currency)}\n\n`
+  // ========== 公司基础信息 ==========
+  prompt += `## 公司基础信息\n\n`
+  prompt += `- **公司名称**：${companyName}（${stock.exchange_ || ''}:${stock.symbol || 'N/A'}）\n`
+  prompt += `- **所属板块**：${stock.board || '主板'}\n`
+  prompt += `- **所属行业**：${stock.industry || 'N/A'}\n`
+  prompt += `- **总市值**：${formatMarketCap(stock.mktcap_norm_currency)}\n\n`
+  prompt += `---\n\n`
   
-  // ========== 二、股价信息 ==========
-  prompt += `## 二、股价信息\n\n`
+  // ========== 估值指标 ==========
+  prompt += `## 估值指标\n\n`
   
-  // 当前股价
+  // 股价部分
+  prompt += `### 股价信息\n\n`
   const currentPrice = parsePriceValue(stock.price)
   if (currentPrice) {
-    prompt += `**当日股价** (${date}): ¥${currentPrice.toFixed(2)}\n`
+    prompt += `- **历史股价**（${date}）：¥${currentPrice.toFixed(2)}\n`
   }
   
-  // 最新股价（如果有图表数据）
+  // 最新股价
   if (props.valuationChartRef?.currentPrice) {
     const todayPrice = parsePriceValue(props.valuationChartRef.currentPrice)
     if (todayPrice) {
       const today = new Date().toISOString().split('T')[0]
-      prompt += `**最新股价** (${today}): ¥${todayPrice.toFixed(2)}\n`
+      prompt += `- **最新股价**（${today}）：¥${todayPrice.toFixed(2)}\n`
     }
   }
   
@@ -883,170 +1042,207 @@ const generatePromptContent = () => {
   const priceHigh = parsePriceValue(stock.price10yhigh)
   if (currentPrice && priceLow && priceHigh && priceHigh > priceLow) {
     const position = ((currentPrice - priceLow) / (priceHigh - priceLow) * 100).toFixed(1)
-    prompt += `**10年股价区间**: ¥${priceLow.toFixed(2)} - ¥${priceHigh.toFixed(2)}\n`
-    prompt += `**当前位置**: ${position}% (在10年区间中的位置)\n`
+    prompt += `- **10年股价区间**：¥${priceLow.toFixed(2)} ~ ¥${priceHigh.toFixed(2)}\n`
+    prompt += `- **股价位置**：${position}%（在10年区间中的位置）\n`
   }
   prompt += `\n`
   
-  // ========== 三、估值指标 ==========
-  prompt += `## 三、估值指标\n\n`
-  
-  // PE 指标
+  // 市盈率部分
+  prompt += `### 市盈率信息\n\n`
   const pettm = stock.pettm && !isNaN(stock.pettm) && stock.pettm > 0 ? parseFloat(stock.pettm) : null
   const peLow = stock.pettmlow && !isNaN(stock.pettmlow) && stock.pettmlow > 0 ? parseFloat(stock.pettmlow) : null
   const peHigh = stock.pettmhigh && !isNaN(stock.pettmhigh) && stock.pettmhigh > 0 ? parseFloat(stock.pettmhigh) : null
   
   if (pettm) {
-    prompt += `**市盈率 (PE TTM)**: ${pettm.toFixed(2)}\n`
+    prompt += `- **当日市盈率**：${pettm.toFixed(2)}\n`
     if (peLow && peHigh && peHigh > peLow) {
       const pePosition = ((pettm - peLow) / (peHigh - peLow) * 100).toFixed(1)
-      prompt += `- 10年PE区间: ${peLow.toFixed(2)} - ${peHigh.toFixed(2)}\n`
-      prompt += `- 当前PE位置: ${pePosition}% (在10年区间中)\n`
+      prompt += `- **10年PE区间**：${peLow.toFixed(2)} ~ ${peHigh.toFixed(2)}\n`
+      prompt += `- **当前PE位置**：${pePosition}%（在10年区间中的位置）\n`
     }
   }
+  prompt += `\n---\n\n`
   
-  // 其他估值指标
-  if (stock.pb && !isNaN(stock.pb) && stock.pb > 0) {
-    prompt += `**市净率 (PB)**: ${parseFloat(stock.pb).toFixed(2)}\n`
-  }
+  // ========== 关键指标及行业位置 ==========
+  prompt += `## 关键指标及行业位置\n\n`
+  prompt += `*以下数据截至 ${date}*\n\n`
   
-  // 估值数据
-  if (props.valuationChartRef?.currentValue) {
-    const todayValue = parsePriceValue(props.valuationChartRef.currentValue)
-    if (todayValue) {
-      const today = new Date().toISOString().split('T')[0]
-      prompt += `**价值大师估值** (${today}): ¥${todayValue.toFixed(2)}\n`
-    }
-  }
-  prompt += `\n`
-  
-  // ========== 四、盈利能力指标 ==========
-  prompt += `## 四、盈利能力指标\n\n`
-  
-  if (stock.roe && !isNaN(stock.roe) && stock.roe > 0) {
-    prompt += `**ROE (净资产收益率)**: ${parseFloat(stock.roe).toFixed(2)}%\n`
-  }
-  if (stock.grossmargin && !isNaN(stock.grossmargin) && stock.grossmargin > 0) {
-    prompt += `**毛利率**: ${parseFloat(stock.grossmargin).toFixed(2)}%\n`
-  }
-  if (stock.net_margain && !isNaN(stock.net_margain) && stock.net_margain > 0) {
-    prompt += `**净利率**: ${parseFloat(stock.net_margain).toFixed(2)}%\n`
-  }
+  // 股息率
   if (stock.yield && !isNaN(stock.yield) && stock.yield > 0) {
-    prompt += `**股息率**: ${parseFloat(stock.yield).toFixed(2)}%\n`
-  }
-  prompt += `\n`
-  
-  // ========== 五、成长性指标 ==========
-  prompt += `## 五、成长性指标\n\n`
-  
-  if (stock.total_free_cash_flow && !isNaN(stock.total_free_cash_flow) && stock.total_free_cash_flow > 0) {
-    prompt += `**自由现金流**: ${formatFCF(stock.total_free_cash_flow)}\n`
-  }
-  if (stock.total_netincome_growth_10y !== null && !isNaN(stock.total_netincome_growth_10y)) {
-    prompt += `**10年净利润增长率**: ${parseFloat(stock.total_netincome_growth_10y).toFixed(2)}%\n`
-  }
-  if (stock.pchange_10y !== null && !isNaN(stock.pchange_10y)) {
-    prompt += `**10年股价年化回报**: ${parseFloat(stock.pchange_10y).toFixed(2)}%\n`
-  }
-  prompt += `\n`
-  
-  // ========== 六、五维评级 ==========
-  const hasRatings = stock.rank_gf_value || stock.rank_growth || stock.rank_momentum || 
-                     stock.rank_profitability || stock.rank_balancesheet || stock.gf_score
-  
-  if (hasRatings) {
-    prompt += `## 六、综合评级 (价值大师)\n\n`
+    prompt += `### 📊 股息率\n\n`
+    prompt += `- **股息率**：${parseFloat(stock.yield).toFixed(2)}%\n`
     
-    if (stock.rank_gf_value) {
-      prompt += `**价值评级**: ${getRankValue(stock.rank_gf_value)}/10\n`
-    }
-    if (stock.rank_growth) {
-      prompt += `**成长能力**: ${getRankValue(stock.rank_growth)}/10\n`
-    }
-    if (stock.rank_momentum) {
-      prompt += `**价值动量**: ${getRankValue(stock.rank_momentum)}/10\n`
-    }
-    if (stock.rank_profitability) {
-      prompt += `**盈利能力**: ${getRankValue(stock.rank_profitability)}/10\n`
-    }
-    if (stock.rank_balancesheet) {
-      prompt += `**财务实力**: ${getRankValue(stock.rank_balancesheet)}/10\n`
-    }
-    
-    const gfScore = stock.gf_score && stock.gf_score > 0 ? Math.round(stock.gf_score) : 0
-    if (gfScore > 0) {
-      prompt += `**综合评分**: ${gfScore}/100\n`
+    const yieldRanking = calculateMetricRanking('yield', stock.yield, true)
+    if (yieldRanking) {
+      prompt += `- **行业排名**：${yieldRanking.rank}/${yieldRanking.total}（前 ${yieldRanking.percentage}%）\n`
+      prompt += `- **行业平均**：${yieldRanking.industryAvg}%\n`
     }
     prompt += `\n`
   }
   
-  // ========== 七、行业对比 ==========
-  if (stock.industry && props.allStocksData && props.allStocksData.length > 0) {
-    prompt += `## 七、行业对比分析\n\n`
-    prompt += `**所属行业**: ${stock.industry}\n\n`
+  // 净利率
+  if (stock.net_margain && !isNaN(stock.net_margain) && stock.net_margain > 0) {
+    prompt += `### 📊 净利率\n\n`
+    prompt += `- **净利率**：${parseFloat(stock.net_margain).toFixed(2)}%\n`
     
-    // 计算关键指标的行业排名
-    const metrics = []
-    
-    if (stock.roe && !isNaN(stock.roe) && stock.roe > 0) {
-      const ranking = calculateMetricRanking('roe', stock.roe, true)
-      if (ranking) {
-        metrics.push(`- **ROE排名**: ${ranking.rank}/${ranking.total} (前${ranking.percentage}%)，行业平均: ${ranking.industryAvg}%`)
-      }
+    const netMarginRanking = calculateMetricRanking('net_margain', stock.net_margain, true)
+    if (netMarginRanking) {
+      prompt += `- **行业排名**：${netMarginRanking.rank}/${netMarginRanking.total}（前 ${netMarginRanking.percentage}%）\n`
+      prompt += `- **行业平均**：${netMarginRanking.industryAvg}%\n`
     }
+    prompt += `\n`
+  }
+  
+  // ROE（净资产收益率）
+  if (stock.roe && !isNaN(stock.roe) && stock.roe > 0) {
+    prompt += `### 📊 ROE（净资产收益率）\n\n`
+    prompt += `- **ROE**：${parseFloat(stock.roe).toFixed(2)}%\n`
     
-    if (stock.grossmargin && !isNaN(stock.grossmargin) && stock.grossmargin > 0) {
-      const ranking = calculateMetricRanking('grossmargin', stock.grossmargin, true)
-      if (ranking) {
-        metrics.push(`- **毛利率排名**: ${ranking.rank}/${ranking.total} (前${ranking.percentage}%)，行业平均: ${ranking.industryAvg}%`)
-      }
+    const roeRanking = calculateMetricRanking('roe', stock.roe, true)
+    if (roeRanking) {
+      prompt += `- **行业排名**：${roeRanking.rank}/${roeRanking.total}（前 ${roeRanking.percentage}%）\n`
+      prompt += `- **行业平均**：${roeRanking.industryAvg}%\n`
     }
+    prompt += `\n`
+  }
+  
+  // 毛利率
+  if (stock.grossmargin && !isNaN(stock.grossmargin) && stock.grossmargin > 0) {
+    prompt += `### 📊 毛利率\n\n`
+    prompt += `- **毛利率**：${parseFloat(stock.grossmargin).toFixed(2)}%\n`
     
-    if (stock.pettm && !isNaN(stock.pettm) && stock.pettm > 0) {
-      const ranking = calculateMetricRanking('pettm', stock.pettm, false)
-      if (ranking) {
-        metrics.push(`- **PE排名**: ${ranking.rank}/${ranking.total} (前${ranking.percentage}%)，行业平均: ${ranking.industryAvg}`)
-      }
+    const grossMarginRanking = calculateMetricRanking('grossmargin', stock.grossmargin, true)
+    if (grossMarginRanking) {
+      prompt += `- **行业排名**：${grossMarginRanking.rank}/${grossMarginRanking.total}（前 ${grossMarginRanking.percentage}%）\n`
+      prompt += `- **行业平均**：${grossMarginRanking.industryAvg}%\n`
     }
+    prompt += `\n`
+  }
+  
+  // 市盈率行业对比
+  if (pettm) {
+    prompt += `### 📊 市盈率（行业对比）\n\n`
+    prompt += `- **市盈率**：${pettm.toFixed(2)}\n`
     
-    if (metrics.length > 0) {
-      prompt += metrics.join('\n') + '\n\n'
+    const peRanking = calculateMetricRanking('pettm', pettm, false)
+    if (peRanking) {
+      prompt += `- **行业排名**：${peRanking.rank}/${peRanking.total}（前 ${peRanking.percentage}%）\n`
+      prompt += `- **行业平均**：${peRanking.industryAvg}\n`
+    }
+    prompt += `\n`
+  }
+  
+  // 市净率行业对比
+  if (stock.pb && !isNaN(stock.pb) && stock.pb > 0) {
+    prompt += `### 📊 市净率（行业对比）\n\n`
+    prompt += `- **市净率**：${parseFloat(stock.pb).toFixed(2)}\n`
+    
+    const pbRanking = calculateMetricRanking('pb', stock.pb, false)
+    if (pbRanking) {
+      prompt += `- **行业排名**：${pbRanking.rank}/${pbRanking.total}（前 ${pbRanking.percentage}%）\n`
+      prompt += `- **行业平均**：${pbRanking.industryAvg}\n`
+    }
+    prompt += `\n`
+  }
+  
+  // ========== 成长性指标 ==========
+  prompt += `---\n\n`
+  prompt += `## 成长性指标\n\n`
+  
+  if (stock.total_free_cash_flow && !isNaN(stock.total_free_cash_flow) && stock.total_free_cash_flow > 0) {
+    prompt += `- **自由现金流**：${formatFCF(stock.total_free_cash_flow)}\n`
+  }
+  if (stock.total_netincome_growth_10y !== null && !isNaN(stock.total_netincome_growth_10y)) {
+    prompt += `- **10年净利润增长**：${parseFloat(stock.total_netincome_growth_10y).toFixed(2)}%\n`
+  }
+  if (stock.pchange_10y !== null && !isNaN(stock.pchange_10y)) {
+    prompt += `- **10年年化回报**：${parseFloat(stock.pchange_10y).toFixed(2)}%\n`
+  }
+  prompt += `\n---\n\n`
+  
+  // ========== 价值大师网五维评级 ==========
+  const hasRatings = stock.rank_gf_value || stock.rank_growth || stock.rank_momentum || 
+                     stock.rank_profitability || stock.rank_balancesheet || stock.gf_score
+  
+  if (hasRatings) {
+    prompt += `## 价值大师网五维评级\n\n`
+    
+    if (stock.rank_gf_value) {
+      prompt += `- **价值评级**：${getRankValue(stock.rank_gf_value)}/10\n`
+    }
+    if (stock.rank_growth) {
+      prompt += `- **成长能力**：${getRankValue(stock.rank_growth)}/10\n`
+    }
+    if (stock.rank_momentum) {
+      prompt += `- **价值动量**：${getRankValue(stock.rank_momentum)}/10\n`
+    }
+    if (stock.rank_profitability) {
+      prompt += `- **盈利能力**：${getRankValue(stock.rank_profitability)}/10\n`
+    }
+    if (stock.rank_balancesheet) {
+      prompt += `- **财务实力**：${getRankValue(stock.rank_balancesheet)}/10\n`
+    }
+    prompt += `\n`
+    
+    const gfScore = stock.gf_score && stock.gf_score > 0 ? Math.round(stock.gf_score) : 0
+    if (gfScore > 0) {
+      prompt += `### 💯 综合评分\n\n`
+      prompt += `**${gfScore}/100**\n\n`
+    }
+    prompt += `---\n\n`
+  }
+  
+  // 当前合理估值
+  if (props.valuationChartRef?.currentValue) {
+    const todayValue = parsePriceValue(props.valuationChartRef.currentValue)
+    const todayPrice = parsePriceValue(props.valuationChartRef.currentPrice)
+    
+    if (todayValue) {
+      // ========== 价值大师网估值分析 ==========
+      prompt += `## 价值大师网估值分析\n\n`
+      const today = new Date().toISOString().split('T')[0]
+      prompt += `### 当前估值情况\n\n`
+      prompt += `- **合理估值**（${today}）：¥${todayValue.toFixed(2)}\n`
+      
+      // 如果有股价，计算偏离度
+      if (todayPrice) {
+        const deviation = ((todayPrice - todayValue) / todayValue * 100)
+        const statusText = props.valuationChartRef?.statusText || '--'
+        prompt += `- **当前股价**：¥${todayPrice.toFixed(2)}\n`
+        prompt += `- **估值状态**：${statusText}\n`
+        prompt += `- **偏离度**：${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%\n`
+      }
+      prompt += `\n`
     }
   }
   
-  // ========== 八、分析要求 ==========
-  prompt += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`
-  prompt += `## 八、请从以下维度进行深度分析：\n\n`
-  prompt += `1. **基本面分析**\n`
-  prompt += `   - 公司业务模式和竞争优势\n`
-  prompt += `   - 行业地位和市场份额\n`
-  prompt += `   - 护城河分析\n\n`
+  // 历史偏离信息
+  const maxDeviation = props.valuationChartRef?.maxDeviation
+  const minDeviation = props.valuationChartRef?.minDeviation
   
-  prompt += `2. **财务健康度**\n`
-  prompt += `   - 盈利能力评估（ROE、毛利率、净利率）\n`
-  prompt += `   - 现金流状况\n`
-  prompt += `   - 成长性分析\n\n`
+  if (maxDeviation && minDeviation && maxDeviation.percentage !== '--') {
+    prompt += `### 历史偏离统计\n\n`
+    prompt += `- **最大高估**：${maxDeviation.percentage}\n`
+    prompt += `  - 日期：${maxDeviation.date}\n`
+    prompt += `  - 股价：¥${maxDeviation.price}\n`
+    prompt += `  - 估值：¥${maxDeviation.value}\n`
+    prompt += `\n`
+    prompt += `- **最大低估**：${minDeviation.percentage}\n`
+    prompt += `  - 日期：${minDeviation.date}\n`
+    prompt += `  - 股价：¥${minDeviation.price}\n`
+    prompt += `  - 估值：¥${minDeviation.value}\n`
+    prompt += `\n`
+  }
   
-  prompt += `3. **估值水平判断**\n`
-  prompt += `   - 当前PE/PB是否合理\n`
-  prompt += `   - 与历史估值对比\n`
-  prompt += `   - 与行业平均对比\n`
-  prompt += `   - 安全边际分析\n\n`
-  
-  prompt += `4. **投资价值建议**\n`
-  prompt += `   - 是否值得投资\n`
-  prompt += `   - 合理买入价格区间\n`
-  prompt += `   - 预期收益率\n`
-  prompt += `   - 投资时间跨度建议\n\n`
-  
-  prompt += `5. **风险提示**\n`
-  prompt += `   - 行业风险\n`
-  prompt += `   - 公司特定风险\n`
-  prompt += `   - 估值风险\n`
-  prompt += `   - 需要重点关注的指标\n\n`
-  
-  prompt += `请提供详细、专业的分析意见，帮助做出投资决策。`
+  // 未来价值预估
+  const futureEstimates = extractFutureEstimates()
+  if (futureEstimates.length > 0) {
+    prompt += `### 未来价值预估\n\n`
+    futureEstimates.forEach(estimate => {
+      prompt += `- **${estimate.date}** 预估价值：¥${estimate.value}\n`
+    })
+    prompt += `\n`
+  }
   
   prompt += `</div></div>`
   
@@ -3209,6 +3405,190 @@ onUnmounted(() => {
   color: #78350f;
   white-space: pre-wrap;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Prompt 底部操作区 */
+.message-content :deep(.prompt-actions) {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid rgba(245, 158, 11, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Prompt 复制按钮 */
+.message-content :deep(.prompt-copy-btn) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.message-content :deep(.prompt-copy-btn::before) {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%);
+  transition: left 0.5s ease;
+}
+
+.message-content :deep(.prompt-copy-btn:hover) {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.message-content :deep(.prompt-copy-btn:hover::before) {
+  left: 100%;
+}
+
+.message-content :deep(.prompt-copy-btn:active) {
+  transform: translateY(0) scale(0.98);
+}
+
+.message-content :deep(.prompt-copy-btn.copied) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.message-content :deep(.copy-btn-icon) {
+  font-size: 16px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.message-content :deep(.copy-btn-text) {
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+/* 快捷链接区域 */
+.message-content :deep(.prompt-quick-links) {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* 快捷链接按钮 */
+.message-content :deep(.quick-link-btn) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 2px solid;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.message-content :deep(.quick-link-btn::before) {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  transition: left 0.4s ease;
+  z-index: 0;
+}
+
+.message-content :deep(.quick-link-btn:hover::before) {
+  left: 0;
+}
+
+.message-content :deep(.quick-link-icon),
+.message-content :deep(.quick-link-text) {
+  position: relative;
+  z-index: 1;
+}
+
+.message-content :deep(.quick-link-icon) {
+  font-size: 16px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.message-content :deep(.quick-link-text) {
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.message-content :deep(.quick-link-btn:hover) {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.message-content :deep(.quick-link-btn:active) {
+  transform: translateY(0) scale(0.98);
+}
+
+/* ChatGPT 按钮样式 */
+.message-content :deep(.chatgpt-btn) {
+  border-color: #10a37f;
+  color: #10a37f;
+  background: rgba(16, 163, 127, 0.05);
+}
+
+.message-content :deep(.chatgpt-btn::before) {
+  background: linear-gradient(135deg, #10a37f 0%, #0d8566 100%);
+}
+
+.message-content :deep(.chatgpt-btn:hover) {
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 163, 127, 0.3);
+}
+
+/* DeepSeek 按钮样式 */
+.message-content :deep(.deepseek-btn) {
+  border-color: #8b5cf6;
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.message-content :deep(.deepseek-btn::before) {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.message-content :deep(.deepseek-btn:hover) {
+  color: white;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Kimi 按钮样式 */
+.message-content :deep(.kimi-btn) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.message-content :deep(.kimi-btn::before) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.message-content :deep(.kimi-btn:hover) {
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* 响应式 - 移动端适配 */
