@@ -108,9 +108,9 @@
             </button>
           </transition>
 
-          <!-- 分析完成后：两个按钮 -->
+          <!-- 分析完成后：按钮区域 -->
           <transition name="dual-fade">
-            <div v-if="analysisCompleted" class="dual-actions">
+            <div v-if="analysisCompleted" class="actions-container">
               <button 
                 @click="outputPrompt" 
                 class="action-btn prompt-btn"
@@ -119,14 +119,17 @@
                 <span class="btn-icon">📋</span>
                 <span class="btn-text">输出 Prompt</span>
               </button>
-              <button 
-                @click="hanaiAnalysis" 
-                class="action-btn hanai-btn"
-                :disabled="isLoading"
-              >
-                <span class="btn-icon">🤖</span>
-                <span class="btn-text">HANAI 分析</span>
-          </button>
+              <transition name="btn-shrink">
+                <button 
+                  v-if="!hanaiAnalysisStarted"
+                  @click="hanaiAnalysis" 
+                  class="action-btn hanai-btn"
+                  :disabled="isLoading"
+                >
+                  <span class="btn-icon">🤖</span>
+                  <span class="btn-text">HANAI 分析</span>
+                </button>
+              </transition>
             </div>
           </transition>
         </div>
@@ -165,6 +168,7 @@ const messagesContainer = ref(null)
 const inputTextarea = ref(null)
 const showPulse = ref(true)
 const analysisCompleted = ref(false) // 价值分析是否完成
+const hanaiAnalysisStarted = ref(false) // HANAI 分析是否已开始
 
 // 性能优化：限制消息数量，避免DOM过多
 const MAX_MESSAGES = 50
@@ -783,7 +787,18 @@ const extractPlainText = (html) => {
   // 创建临时 div 元素
   const temp = document.createElement('div')
   temp.innerHTML = html
-  return temp.textContent || temp.innerText || ''
+  
+  // 获取纯文本
+  let text = temp.textContent || temp.innerText || ''
+  
+  // 清理多余的空行和空格
+  text = text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .join('\n')
+  
+  return text
 }
 
 // 复制到剪贴板
@@ -967,8 +982,11 @@ const addCopyButtonToPrompt = () => {
 }
 
 // HANAI 分析
-const hanaiAnalysis = () => {
+const hanaiAnalysis = async () => {
   if (isLoading.value) return
+  
+  // 标记 HANAI 分析已开始
+  hanaiAnalysisStarted.value = true
   
   const hanaiMessage = {
     role: 'user',
@@ -978,15 +996,186 @@ const hanaiAnalysis = () => {
   
   addMessage(hanaiMessage)
   
+  // 添加一条空消息，用于流式更新
+  const assistantMessageIndex = messages.value.length
   addMessage({
     role: 'assistant',
-    content: '🤖 HANAI 正在为您进行深度分析，请稍候...\n\n💡 此功能需要连接 AI 服务，请在此处添加您的分析逻辑。',
+    content: '',
     timestamp: getCurrentTime()
   })
   
-  nextTick(() => {
-    scrollToBottom(true)
+  isLoading.value = true
+  
+  try {
+    // 创建隐藏的 Prompt 内容并提取纯文本
+    const plainText = await extractPromptTextForAPI()
+    
+    // 调用 Kimi API
+    await callKimiAPI(plainText, assistantMessageIndex)
+    
+  } catch (error) {
+    console.error('HANAI 分析失败:', error)
+    messages.value[assistantMessageIndex].content = `❌ 分析失败：${error.message}\n\n请检查网络连接或稍后再试。`
+  } finally {
+    isLoading.value = false
+    nextTick(() => {
+      scrollToBottom(true)
+    })
+  }
+}
+
+// 从隐藏的 Prompt DOM 中提取纯文本（复用 prompt-text 的逻辑）
+const extractPromptTextForAPI = async () => {
+  return new Promise((resolve) => {
+    // 生成 Prompt HTML 内容
+    const promptContent = generatePromptContent()
+    
+    // 创建一个隐藏的临时容器
+    const hiddenContainer = document.createElement('div')
+    hiddenContainer.style.position = 'absolute'
+    hiddenContainer.style.left = '-9999px'
+    hiddenContainer.style.top = '-9999px'
+    hiddenContainer.style.visibility = 'hidden'
+    hiddenContainer.innerHTML = promptContent
+    
+    // 添加到 DOM 中（为了让浏览器正确渲染）
+    document.body.appendChild(hiddenContainer)
+    
+    // 等待 DOM 更新
+    nextTick(() => {
+      // 查找 prompt-text 元素
+      const promptTextElement = hiddenContainer.querySelector('.prompt-text')
+      
+      let plainText = ''
+      if (promptTextElement) {
+        // 使用与复制按钮完全相同的逻辑提取文本
+        plainText = promptTextElement.textContent || promptTextElement.innerText || ''
+      } else {
+        // 降级方案：直接提取整个容器的文本
+        plainText = hiddenContainer.textContent || hiddenContainer.innerText || ''
+      }
+      
+      // 清理临时容器
+      document.body.removeChild(hiddenContainer)
+      
+      // 返回提取的纯文本
+      resolve(plainText)
+    })
   })
+}
+
+// 调用 Kimi API 进行流式分析
+const callKimiAPI = async (prompt, messageIndex) => {
+  const KIMI_API_KEY = 'sk-PALcY0I0t5SfU9aqnooUcF0Ue83lkmbuZORH02683QhvG8ii'
+  const KIMI_API_URL = 'https://api.moonshot.cn/v1/chat/completions'
+  
+  try {
+    const response = await fetch(KIMI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${KIMI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'kimi-k2-0905-preview',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        stream: true,
+        temperature: 0.7
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`API 请求失败: ${response.status} ${response.statusText}`)
+    }
+    
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+    let displayedContent = '🤖 HANAI 正在分析中...\n\n' // 已显示的内容
+    let pendingContent = '' // 待显示的内容缓冲区
+    let isTyping = false // 是否正在打字
+    
+    // 显示开始提示
+    messages.value[messageIndex].content = displayedContent
+    
+    // 打字机效果函数
+    const typewriterEffect = async () => {
+      if (isTyping) return
+      isTyping = true
+      
+      while (pendingContent.length > 0) {
+        // 每次显示1-3个字符（中文或英文）
+        const charsToAdd = Math.min(pendingContent.length, Math.floor(Math.random() * 3) + 1)
+        const textToAdd = pendingContent.slice(0, charsToAdd)
+        pendingContent = pendingContent.slice(charsToAdd)
+        
+        displayedContent += textToAdd
+        messages.value[messageIndex].content = displayedContent
+        
+        // 定期滚动
+        if (Math.random() < 0.3) {
+          nextTick(() => scrollToBottom())
+        }
+        
+        // 等待一小段时间，创造打字效果（15-30ms）
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 15 + 15))
+      }
+      
+      isTyping = false
+    }
+    
+    // 读取流式响应
+    while (true) {
+      const { done, value } = await reader.read()
+      
+      if (done) break
+      
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      
+      for (const line of lines) {
+        if (line.trim() === '' || line.trim() === 'data: [DONE]') continue
+        
+        if (line.startsWith('data: ')) {
+          try {
+            const jsonStr = line.slice(6)
+            const data = JSON.parse(jsonStr)
+            
+            if (data.choices && data.choices[0]?.delta?.content) {
+              const content = data.choices[0].delta.content
+              // 将新内容加入待显示缓冲区
+              pendingContent += content
+              
+              // 启动打字机效果
+              if (!isTyping) {
+                typewriterEffect()
+              }
+            }
+          } catch (e) {
+            console.error('解析 SSE 数据失败:', e)
+          }
+        }
+      }
+    }
+    
+    // 等待所有内容显示完毕
+    while (pendingContent.length > 0 || isTyping) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    
+    // 确保最后滚动到底部
+    nextTick(() => scrollToBottom(true))
+    
+  } catch (error) {
+    console.error('Kimi API 调用失败:', error)
+    throw error
+  }
 }
 
 // 生成完整的 Prompt 内容（按照模板格式）
@@ -2492,11 +2681,46 @@ onUnmounted(() => {
   transform: scale(1);
 }
 
-/* 双按钮布局 */
-.dual-actions {
+/* 按钮容器布局 */
+.actions-container {
   display: flex;
   gap: 12px;
   width: 100%;
+  transition: gap 0.3s ease;
+}
+
+/* 按钮缩小消失动画 */
+.btn-shrink-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.btn-shrink-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.btn-shrink-enter-from {
+  opacity: 0;
+  transform: scale(0.8);
+  max-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.btn-shrink-leave-to {
+  opacity: 0;
+  transform: scale(0.8) translateX(20px);
+  max-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.btn-shrink-enter-to,
+.btn-shrink-leave-from {
+  opacity: 1;
+  transform: scale(1);
+  max-width: 500px;
 }
 
 /* 操作按钮（输出 Prompt 和 HANAI 分析）*/
