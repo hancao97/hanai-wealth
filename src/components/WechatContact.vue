@@ -68,10 +68,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import wechatQrcode from '@/assets/wechat.jpg'
 
 const isModalOpen = ref(false)
 const isAIChatOpen = ref(false)
-const qrcodePath = computed(() => '/wechat.jpg')
+const qrcodePath = wechatQrcode
 const buttonTitle = computed(() => '点击查看微信二维码')
 
 // 监听 AI Chat 的状态
