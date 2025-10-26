@@ -1,11 +1,12 @@
 <template>
   <div id="app">
     <router-view />
+    <WechatContact />
   </div>
 </template>
 
 <script setup>
-// Vue 3 Composition API
+import WechatContact from '@/components/WechatContact.vue'
 </script>
 
 <style>
