@@ -2,9 +2,9 @@ name: Daily Data Fetch
 
 on:
   schedule:
-    # 北京时间晚上9点 = UTC时间下午1点 (UTC+8)
+    # 北京时间晚上6点 = UTC时间上午10点 (UTC+8)
     # 分 时 日 月 周，周一到周五
-    - cron: '0 13 * * 1-5'
+    - cron: '0 10 * * 1-5'
   workflow_dispatch:  # 允许手动触发
 
 jobs:
