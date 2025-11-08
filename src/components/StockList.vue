@@ -55,6 +55,8 @@
               </svg>
               <span class="date-btn-label">最新</span>
             </button>
+            <!-- 站内公告按钮 -->
+            <Announcement :inline="true" />
           </div>
           <div class="date-status" :class="dateStatusClass">
             {{ dateStatusText }}
@@ -462,6 +464,7 @@ import * as echarts from 'echarts'
 import AnimatedNumber from './AnimatedNumber.vue'
 import AnimatedCounter from './AnimatedCounter.vue'
 import MarketSentiment from './MarketSentiment.vue'
+import Announcement from './Announcement.vue'
 
 const router = useRouter()
 const stockStore = useStockDataStore()
