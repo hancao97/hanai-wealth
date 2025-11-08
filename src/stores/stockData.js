@@ -15,6 +15,7 @@ export const useStockDataStore = defineStore('stockData', () => {
   const companiesInfo = ref({}) // 存储公司基础信息
   const historicalData = ref({}) // 存储历史数据 { date: data[] }
   const marketSentiment = ref([]) // 市场情绪数据
+  const weeklyReport = ref(null) // 价值周报数据
 
   // 筛选条件
   const filters = ref({
@@ -505,6 +506,20 @@ export const useStockDataStore = defineStore('stockData', () => {
     }
   }
 
+  // 加载价值周报
+  async function loadWeeklyReport() {
+    try {
+      const response = await axios.get('./weekly-report.json')
+      weeklyReport.value = response.data
+      console.log('✅ 价值周报加载成功')
+      return weeklyReport.value
+    } catch (err) {
+      console.warn('价值周报加载失败:', err.message)
+      weeklyReport.value = null
+      throw err
+    }
+  }
+
   return {
     // 状态
     allData,
@@ -517,6 +532,7 @@ export const useStockDataStore = defineStore('stockData', () => {
     error,
     filters,
     marketSentiment,
+    weeklyReport,
     
     // 计算属性
     totalPages,
@@ -530,6 +546,7 @@ export const useStockDataStore = defineStore('stockData', () => {
     loadDatesConfig,
     loadDataForDate,
     loadMarketSentimentData,
+    loadWeeklyReport,
     applyFilters,
     updateFilter,
     clearFilters,

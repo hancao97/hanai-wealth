@@ -13,6 +13,7 @@
     "remove-sma": "node ./src/scripts/remove-sma-keys.js",
     "extract-companies": "node ./src/scripts/extract-companies.js",
     "remove-business-descrpt": "node ./src/scripts/remove-business-descrpt.js",
+    "weekly-report": "node ./src/scripts/generate-weekly-report.js",
     "fetch:build": "npm run fetch && npm run build",
     "serve:today": "npm run fetch && npm run dev",
     "deploy": "npm run build && gh-pages -d dist"
@@ -20,6 +21,7 @@
   "dependencies": {
     "axios": "^1.12.0",
     "echarts": "^5.4.3",
+    "html2pdf.js": "^0.12.1",
     "marked": "^17.0.0",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",

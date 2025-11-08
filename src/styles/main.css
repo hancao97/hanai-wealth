@@ -173,6 +173,26 @@
   pointer-events: none;
 }
 
+/* 价值周报按钮 */
+.weekly-report-btn {
+  width: auto;
+  min-width: 56px;
+  padding: 0 10px;
+  gap: 4px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-color: #8b5cf6;
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.weekly-report-btn:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  border-color: #7c3aed;
+  box-shadow: 0 4px 12px rgba(139,92,246,0.3);
+  transform: translateY(-2px);
+}
+
 .date-btn-label {
   font-size: 12px;
   line-height: 1;
