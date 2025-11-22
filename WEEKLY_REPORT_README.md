@@ -80,7 +80,7 @@ npm run weekly-report
   "date": "2025-11-07",
   "generatedAt": "2025-11-08T21:00:00.000Z",
   "prompt": "发送给AI的完整Prompt...",
-  "analysis": "AI生成的分析报告..."
+  "analysis": "AI分析报告..."
 }
 ```
 
