@@ -45,6 +45,6 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add public/weekly-report.json
-          git commit -m "chore: 更新价值周报 [skip ci]"
+          git commit -m "chore: 更新价值周报"
           git push
 
