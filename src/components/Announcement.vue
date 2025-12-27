@@ -97,11 +97,14 @@ const checkUnread = () => {
 
 const loadAnnouncement = async () => {
   try {
-    const response = await fetch('/announcement.md')
-    if (response.ok) {
-      rawContent.value = await response.text()
-      checkUnread()
+    // 使用 Vite 的 base 路径，兼容 GitHub Pages 子路径部署
+    const basePath = import.meta.env.BASE_URL || '/'
+    const response = await fetch(`${basePath}announcement.md`)
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`)
     }
+    rawContent.value = await response.text()
+    checkUnread()
   } catch (error) {
     console.error('加载公告失败:', error)
     rawContent.value = '# 加载失败\n\n无法加载公告内容，请稍后再试。'
@@ -447,4 +450,3 @@ onUnmounted(() => {
   }
 }
 </style>
-

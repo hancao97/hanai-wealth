@@ -2069,6 +2069,10 @@ onUnmounted(() => {
   width: 850px;
   max-width: 90vw;
   height: 100vh;
+  max-height: 100vh;
+  /* 使用动态视口高度，避免移动端地址栏遮挡底部按钮 */
+  height: 100dvh;
+  max-height: 100dvh;
   background: white;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
   display: flex;
@@ -2683,6 +2687,7 @@ onUnmounted(() => {
 /* 分析按钮区域 */
 .analysis-actions {
   padding: 16px 20px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border-top: 1px solid rgba(148, 163, 184, 0.1);
 }
@@ -3068,6 +3073,7 @@ onUnmounted(() => {
 
   .analysis-actions {
     padding: 14px 16px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   }
 
   .analysis-btn {
@@ -4059,5 +4065,4 @@ onUnmounted(() => {
   }
 }
 </style>
-
 
