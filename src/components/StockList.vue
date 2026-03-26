@@ -320,6 +320,42 @@
       </div>
     </div>
     
+    <div class="year-performance-section">
+      <div class="year-performance-card leader-card">
+        <div class="year-performance-header">
+          <div>
+            <div class="year-performance-eyebrow">今年股王</div>
+            <h3>年内涨幅冠军</h3>
+          </div>
+          <span class="year-performance-badge leader">TOP 1</span>
+        </div>
+        <template v-if="yearPerformanceSummary.leader">
+          <div class="year-performance-company">{{ yearPerformanceSummary.leader.company }}</div>
+          <div class="year-performance-symbol">{{ yearPerformanceSummary.leader.symbol }}</div>
+          <div class="year-performance-value positive">{{ formatSignedPercentage(yearPerformanceSummary.leader.performance) }}</div>
+          <div class="year-performance-period">{{ yearPerformancePeriodText }}</div>
+        </template>
+        <div v-else class="year-performance-empty">暂无数据</div>
+      </div>
+
+      <div class="year-performance-card laggard-card">
+        <div class="year-performance-header">
+          <div>
+            <div class="year-performance-eyebrow">今年股渣</div>
+            <h3>年内跌幅垫底</h3>
+          </div>
+          <span class="year-performance-badge laggard">BOTTOM 1</span>
+        </div>
+        <template v-if="yearPerformanceSummary.laggard">
+          <div class="year-performance-company">{{ yearPerformanceSummary.laggard.company }}</div>
+          <div class="year-performance-symbol">{{ yearPerformanceSummary.laggard.symbol }}</div>
+          <div class="year-performance-value negative">{{ formatSignedPercentage(yearPerformanceSummary.laggard.performance) }}</div>
+          <div class="year-performance-period">{{ yearPerformancePeriodText }}</div>
+        </template>
+        <div v-else class="year-performance-empty">暂无数据</div>
+      </div>
+    </div>
+
     <!-- 状态栏 -->
     <div class="status-bar" :class="{ 'loading': loading }">
       <div class="results-count">
@@ -520,7 +556,8 @@ const {
   industries,
   dividendStats,
   marketOverview,
-  marketSentiment
+  marketSentiment,
+  yearPerformanceSummary
 } = storeToRefs(stockStore)
 
 const {
@@ -566,6 +603,13 @@ const dateStatusClass = computed(() => {
   if (error.value) return 'error'
   if (currentDate.value && allData.value.length > 0) return 'success'
   return ''
+})
+
+const yearPerformancePeriodText = computed(() => {
+  if (!yearPerformanceSummary.value.startDate || !yearPerformanceSummary.value.endDate) {
+    return '暂无统计区间'
+  }
+  return `${yearPerformanceSummary.value.startDate} → ${yearPerformanceSummary.value.endDate}`
 })
 
 // 股息率统计项
@@ -801,6 +845,13 @@ const formatPercentage = (value) => {
   return numValue.toFixed(2) + '%'
 }
 
+const formatSignedPercentage = (value) => {
+  if (value === undefined || value === null) return 'N/A'
+  const numValue = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(numValue)) return 'N/A'
+  return `${numValue > 0 ? '+' : ''}${numValue.toFixed(2)}%`
+}
+
 const formatPE = (pe) => {
   if (!pe) return 'N/A'
   const numPE = typeof pe === 'string' ? parseFloat(pe) : pe
@@ -929,9 +980,25 @@ const initCharts = async () => {
 
 const updateCharts = () => {
   if (!Array.isArray(allData.value) || allData.value.length === 0) return
+
+  if (valuationChart) {
+    valuationChart.resize()
+  }
+  if (changeChart) {
+    changeChart.resize()
+  }
   
   updateValuationChart()
   updateChangeChart()
+
+  requestAnimationFrame(() => {
+    if (valuationChart) {
+      valuationChart.resize()
+    }
+    if (changeChart) {
+      changeChart.resize()
+    }
+  })
 }
 
 const updateValuationChart = () => {
@@ -1266,6 +1333,10 @@ watch(allData, async () => {
       changeChart = echarts.init(changeChartRef.value)
     }
     updateCharts()
+    setTimeout(() => {
+      handleResize()
+      updateCharts()
+    }, 120)
   }
   triggerStatsAnimation()
 }, { deep: true })

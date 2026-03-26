@@ -16,6 +16,12 @@ export const useStockDataStore = defineStore('stockData', () => {
   const historicalData = ref({}) // 存储历史数据 { date: data[] }
   const marketSentiment = ref([]) // 市场情绪数据
   const weeklyReport = ref(null) // 价值周报数据
+  const yearPerformanceSummary = ref({
+    startDate: null,
+    endDate: null,
+    leader: null,
+    laggard: null
+  })
 
   // 筛选条件
   const filters = ref({
@@ -292,8 +298,7 @@ export const useStockDataStore = defineStore('stockData', () => {
       error.value = null
       currentDate.value = selectedDate
       
-      const response = await axios.get(`./assets/${selectedDate}.json`)
-      const dailyData = response.data
+      const dailyData = await getHistoricalDataByDate(selectedDate)
       
       // 合并公司基础信息
       allData.value = dailyData.map(item => {
@@ -302,6 +307,7 @@ export const useStockDataStore = defineStore('stockData', () => {
       })
       
       applyFilters()
+      await calculateYearPerformanceSummary(selectedDate)
       
       // 加载历史数据并计算市场情绪（不阻塞主流程）
       loadMarketSentimentData(selectedDate).catch(err => {
@@ -310,10 +316,130 @@ export const useStockDataStore = defineStore('stockData', () => {
     } catch (err) {
       error.value = `无法加载 ${selectedDate} 的数据: ${err.message}`
       allData.value = []
+      yearPerformanceSummary.value = {
+        startDate: null,
+        endDate: selectedDate,
+        leader: null,
+        laggard: null
+      }
       applyFilters()
     } finally {
       loading.value = false
     }
+  }
+
+  async function getHistoricalDataByDate(date) {
+    if (!date) {
+      return []
+    }
+
+    if (historicalData.value[date]) {
+      return historicalData.value[date]
+    }
+
+    const response = await axios.get(`./assets/${date}.json`)
+    historicalData.value[date] = response.data
+    return historicalData.value[date]
+  }
+
+  function parsePriceValue(price) {
+    if (price === null || price === undefined || price === '') {
+      return NaN
+    }
+
+    if (typeof price === 'number') {
+      return price
+    }
+
+    if (typeof price === 'string') {
+      return parseFloat(price.replace(/[^\d.-]/g, ''))
+    }
+
+    return NaN
+  }
+
+  async function calculateYearPerformanceSummary(selectedDate) {
+    const summary = {
+      startDate: null,
+      endDate: selectedDate,
+      leader: null,
+      laggard: null
+    }
+
+    if (!selectedDate || !Array.isArray(availableDates.value) || availableDates.value.length === 0) {
+      yearPerformanceSummary.value = summary
+      return
+    }
+
+    const currentYear = selectedDate.slice(0, 4)
+    const yearDates = availableDates.value
+      .filter(date => date.startsWith(currentYear) && date <= selectedDate)
+      .sort()
+
+    if (yearDates.length === 0) {
+      yearPerformanceSummary.value = summary
+      return
+    }
+
+    const startDate = yearDates[0]
+    summary.startDate = startDate
+
+    const [startData, endData] = await Promise.all([
+      getHistoricalDataByDate(startDate),
+      getHistoricalDataByDate(selectedDate)
+    ])
+
+    if (!Array.isArray(startData) || !Array.isArray(endData) || startData.length === 0 || endData.length === 0) {
+      yearPerformanceSummary.value = summary
+      return
+    }
+
+    const startPriceMap = new Map()
+    startData.forEach(item => {
+      const symbol = item?.symbol
+      const price = parsePriceValue(item?.price)
+      if (!symbol || !Number.isFinite(price) || price <= 0) {
+        return
+      }
+      startPriceMap.set(symbol, {
+        company: item.company,
+        price
+      })
+    })
+
+    const performances = endData.reduce((list, item) => {
+      const symbol = item?.symbol
+      const startInfo = startPriceMap.get(symbol)
+      const currentPrice = parsePriceValue(item?.price)
+
+      if (!symbol || !startInfo || !Number.isFinite(currentPrice) || currentPrice <= 0) {
+        return list
+      }
+
+      const performance = ((currentPrice - startInfo.price) / startInfo.price) * 100
+      if (!Number.isFinite(performance)) {
+        return list
+      }
+
+      list.push({
+        symbol,
+        company: item.company || startInfo.company || '未知公司',
+        startPrice: startInfo.price,
+        currentPrice,
+        performance
+      })
+      return list
+    }, [])
+
+    if (performances.length === 0) {
+      yearPerformanceSummary.value = summary
+      return
+    }
+
+    performances.sort((a, b) => b.performance - a.performance)
+    summary.leader = performances[0]
+    summary.laggard = performances[performances.length - 1]
+    yearPerformanceSummary.value = summary
   }
 
   // 加载市场情绪数据（近20个交易日）
@@ -337,8 +463,7 @@ export const useStockDataStore = defineStore('stockData', () => {
         // 如果已经缓存，直接使用
         if (!historicalData.value[date]) {
           try {
-            const response = await axios.get(`./assets/${date}.json`)
-            historicalData.value[date] = response.data
+            await getHistoricalDataByDate(date)
           } catch (err) {
             console.warn(`无法加载 ${date} 的数据:`, err.message)
             continue
@@ -533,6 +658,7 @@ export const useStockDataStore = defineStore('stockData', () => {
     filters,
     marketSentiment,
     weeklyReport,
+    yearPerformanceSummary,
     
     // 计算属性
     totalPages,
