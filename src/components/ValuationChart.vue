@@ -118,6 +118,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
+import { alignValueDataToPrice } from '@/utils/valuationAlign.js'
 
 const props = defineProps({
   stockData: {
@@ -176,98 +177,6 @@ const statusBadgeClass = computed(() => {
   if (text.includes('严重低估')) return 'status-undervalued-severe'
   return 'status-fair'
 })
-
-// 数据对齐函数：将价值线数据对齐到价格线的每个日期，并延伸到价值线最后日期
-const alignValueDataToPrice = (medpsData, priceData) => {
-  if (!medpsData.length || !priceData.length) return medpsData
-  
-  // 将 medpsData 转换为 Map，便于查找
-  const medpsMap = new Map()
-  medpsData.forEach(item => {
-    const dateKey = new Date(item[0]).toDateString()
-    medpsMap.set(dateKey, item[1])
-  })
-  
-  // 获取价格线的最后一个日期和价值线的最后一个日期
-  const lastPriceDate = new Date(priceData[priceData.length - 1][0])
-  const lastMedpsDate = new Date(medpsData[medpsData.length - 1][0])
-  
-  // 确定结束日期：取价值线和价格线中较晚的日期
-  const endDate = lastMedpsDate > lastPriceDate ? lastMedpsDate : lastPriceDate
-  
-  const result = []
-  
-  // 第一阶段：处理价格线的所有日期
-  for (let i = 0; i < priceData.length; i++) {
-    const priceDate = new Date(priceData[i][0])
-    const dateKey = priceDate.toDateString()
-    
-    // 如果该日期在 medpsData 中存在，直接使用
-    if (medpsMap.has(dateKey)) {
-      result.push([priceData[i][0], medpsMap.get(dateKey)])
-    } else {
-      // 否则进行线性插值
-      const interpolatedValue = interpolateValue(medpsData, priceDate)
-      if (interpolatedValue !== null) {
-        result.push([priceData[i][0], interpolatedValue])
-      }
-    }
-  }
-  
-  // 第二阶段：如果价值线的日期超过了价格线，继续添加剩余的价值线数据
-  if (lastMedpsDate > lastPriceDate) {
-    for (let i = 0; i < medpsData.length; i++) {
-      const medpsDate = new Date(medpsData[i][0])
-      
-      // 只添加在价格线最后日期之后的价值数据
-      if (medpsDate > lastPriceDate) {
-        result.push([medpsData[i][0], medpsData[i][1]])
-      }
-    }
-  }
-  
-  return result
-}
-
-// 线性插值函数
-const interpolateValue = (medpsData, targetDate) => {
-  const targetTime = targetDate.getTime()
-  
-  // 找到目标日期前后的两个数据点
-  let beforePoint = null
-  let afterPoint = null
-  
-  for (let i = 0; i < medpsData.length; i++) {
-    const currentTime = new Date(medpsData[i][0]).getTime()
-    
-    if (currentTime <= targetTime) {
-      beforePoint = medpsData[i]
-    }
-    
-    if (currentTime >= targetTime && !afterPoint) {
-      afterPoint = medpsData[i]
-      break
-    }
-  }
-  
-  // 如果找不到前后点，返回最近的值
-  if (!beforePoint && !afterPoint) return null
-  if (!beforePoint) return afterPoint[1]
-  if (!afterPoint) return beforePoint[1]
-  
-  // 如果目标日期正好在某个数据点上
-  const beforeTime = new Date(beforePoint[0]).getTime()
-  const afterTime = new Date(afterPoint[0]).getTime()
-  
-  if (beforeTime === targetTime) return beforePoint[1]
-  if (afterTime === targetTime) return afterPoint[1]
-  
-  // 线性插值计算
-  const ratio = (targetTime - beforeTime) / (afterTime - beforeTime)
-  const interpolatedValue = beforePoint[1] + (afterPoint[1] - beforePoint[1]) * ratio
-  
-  return interpolatedValue
-}
 
 // 计算历史偏离统计
 // 找出历史上价格相对价值偏离最大和最小的时刻
