@@ -148,7 +148,7 @@ git commit -m "feat: add useCompareValuation composable"
 **Files:**
 - Create: `src/components/CompareValuationChart.vue`
 
-- [ ] **Step 1:** Template：`v-if loading` 加载；`v-else-if error === 'PRIMARY_CHART_FAILED'`（或统一 error 字符串）显示错误块；`v-else-if merged && !merged.ok && merged.code === 'INSUFFICIENT_OVERLAP'` 显示空态；`v-else-if merged && merged.ok` 显示 `div` + `echarts`。
+- [ ] **Step 1:** Template 分支（顺序须覆盖所有 `error` 取值，避免落到空白 DOM）：`loading` → 加载；`error === 'PRIMARY_CHART_FAILED'` → 整图错误块（§4.4 主侧失败）；`error === 'COMPARE_CHART_FAILED'` → **说明态**（文案：对比标的估值走势暂不可用；与规格 §3.3「第二只无走势」一致；**非**整页红错，以免与主失败混淆）；`merged && !merged.ok && merged.code === 'INSUFFICIENT_OVERLAP'` → 数据不足空态；`merged && merged.ok` → ECharts；若有未预料的 `error`，`v-else` 兜底简短错误文案。
 
 - [ ] **Step 2:** `watch` `primaryStock`、`compareStock`（或二者 `stockid`）：若 **`compareStock` 为空或 `compareStock.stockid` 缺失**，则 **不调用** `loadCompare`，并重置内部 chart 状态；仅在两只都有效时调用 `loadCompare(primary, compare)`。
 
