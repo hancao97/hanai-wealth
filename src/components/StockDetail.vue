@@ -139,6 +139,14 @@
         :stock-data="stockData"
       />
 
+      <StockComparePanel
+        :primary-stock="stockData"
+        :all-stocks-data="allStocksData"
+        :model-value="compareStockId"
+        :initial-expanded="comparePanelExpandedInitial"
+        @update:model-value="onCompareStockIdUpdate"
+      />
+
       <!-- 财务指标分析组件 -->
       <FinancialMetrics 
         :stock-data="stockData"
@@ -228,12 +236,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import * as echarts from 'echarts'
 import FinancialMetrics from './FinancialMetrics.vue'
 import ValuationChart from './ValuationChart.vue'
+import StockComparePanel from './StockComparePanel.vue'
 import AIChat from './AIChat.vue'
 
 const route = useRoute()
@@ -251,7 +260,51 @@ const error = ref(null)
 const radarChartRef = ref(null)
 const valuationChartRef = ref(null)
 const activeRatingIndex = ref(-1)
+const compareStockId = ref('')
 let radarChart = null
+
+const comparePanelExpandedInitial = computed(() => {
+  const q = route.query.compareStockId
+  if (!q || !stockData.value || !allStocksData.value.length) return false
+  const row = allStocksData.value.find((s) => s.stockid === q)
+  return Boolean(row && row.stockid !== stockData.value.stockid)
+})
+
+function syncCompareFromRoute() {
+  const q = route.query.compareStockId
+  if (!q) {
+    compareStockId.value = ''
+    return
+  }
+  if (!stockData.value || !allStocksData.value.length) return
+
+  const row = allStocksData.value.find((s) => s.stockid === q)
+  if (!row || row.stockid === stockData.value.stockid) {
+    const nextQuery = { ...route.query }
+    delete nextQuery.compareStockId
+    router.replace({ query: nextQuery })
+    compareStockId.value = ''
+    return
+  }
+  compareStockId.value = q
+}
+
+watch(
+  () => [route.query.compareStockId, stockData.value?.stockid, allStocksData.value.length],
+  () => syncCompareFromRoute(),
+  { immediate: true }
+)
+
+function onCompareStockIdUpdate(id) {
+  compareStockId.value = id || ''
+  const nextQuery = { ...route.query }
+  if (id) {
+    nextQuery.compareStockId = id
+  } else {
+    delete nextQuery.compareStockId
+  }
+  router.replace({ query: nextQuery })
+}
 
 // 计算属性
 const dataDateText = computed(() => {
