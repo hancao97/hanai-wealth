@@ -76,6 +76,9 @@
           </tbody>
         </table>
 
+        <p class="stock-compare-panel-chart-note">
+          趋势图按最新共同交易日收盘价归一为 100；悬停可查看真实股价和估值。
+        </p>
         <CompareValuationChart :primary-stock="primaryStock" :compare-stock="compareStock" />
       </div>
     </div>
@@ -305,5 +308,12 @@ function clearCompare() {
 
 .stock-compare-panel-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.stock-compare-panel-chart-note {
+  margin: 14px 0 -2px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

@@ -91,6 +91,36 @@
 
         <!-- 分析按钮区域 -->
         <div class="analysis-actions">
+          <div v-if="showAIConfig" class="ai-config-panel">
+            <div class="ai-config-title">配置 HANAI API</div>
+            <div class="ai-config-grid">
+              <label class="ai-config-field">
+                <span>服务商</span>
+                <select v-model="aiConfigForm.provider" @change="syncAIProviderDefaults">
+                  <option value="moonshot">Kimi / Moonshot</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+              </label>
+              <label class="ai-config-field">
+                <span>模型</span>
+                <input v-model.trim="aiConfigForm.model" type="text" autocomplete="off" />
+              </label>
+              <label class="ai-config-field ai-config-wide">
+                <span>API Key</span>
+                <input v-model.trim="aiConfigForm.apiKey" type="password" autocomplete="off" placeholder="粘贴 API Key" />
+              </label>
+              <label class="ai-config-field ai-config-wide">
+                <span>Base URL</span>
+                <input v-model.trim="aiConfigForm.apiBaseUrl" type="text" autocomplete="off" />
+              </label>
+            </div>
+            <div v-if="aiConfigError" class="ai-config-error">{{ aiConfigError }}</div>
+            <div class="ai-config-actions">
+              <button type="button" class="ai-config-save" @click="saveAIConfigAndRun">保存并分析</button>
+              <button type="button" class="ai-config-cancel" @click="showAIConfig = false">取消</button>
+            </div>
+          </div>
+
           <!-- 初始状态：价值分析按钮 -->
           <transition name="btn-fade">
           <button 
@@ -140,6 +170,16 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { marked } from 'marked'
+import {
+  assertAIConfig,
+  buildChatCompletionPayload,
+  getAPIErrorMessage,
+  getAuthHeaders,
+  getChatCompletionUrl,
+  resolveAIConfig,
+  saveBrowserAIConfig,
+} from '@/utils/aiProvider.js'
 
 const props = defineProps({
   stockData: {
@@ -169,9 +209,24 @@ const inputTextarea = ref(null)
 const showPulse = ref(true)
 const analysisCompleted = ref(false) // 价值分析是否完成
 const hanaiAnalysisStarted = ref(false) // HANAI 分析是否已开始
+const showAIConfig = ref(false)
+const aiConfigForm = ref({
+  provider: 'moonshot',
+  apiKey: '',
+  apiBaseUrl: 'https://api.moonshot.cn/v1',
+  model: 'kimi-k2.6'
+})
+const aiConfigError = ref('')
 
 // 性能优化：限制消息数量，避免DOM过多
 const MAX_MESSAGES = 50
+
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: false,
+  mangle: false
+})
 
 
 // 切换聊天窗口
@@ -981,9 +1036,60 @@ const addCopyButtonToPrompt = () => {
   })
 }
 
+function syncAIProviderDefaults() {
+  if (aiConfigForm.value.provider === 'openai') {
+    aiConfigForm.value.apiBaseUrl = 'https://api.openai.com/v1'
+    if (!aiConfigForm.value.model || aiConfigForm.value.model.startsWith('kimi-')) {
+      aiConfigForm.value.model = 'gpt-5.5'
+    }
+    return
+  }
+
+  aiConfigForm.value.apiBaseUrl = 'https://api.moonshot.cn/v1'
+  if (!aiConfigForm.value.model || aiConfigForm.value.model.startsWith('gpt-')) {
+    aiConfigForm.value.model = 'kimi-k2.6'
+  }
+}
+
+function openAIConfigPanel(message = '') {
+  const config = resolveAIConfig()
+  aiConfigForm.value = {
+    provider: config.provider || 'moonshot',
+    apiKey: config.apiKey || '',
+    apiBaseUrl: config.apiBaseUrl || 'https://api.moonshot.cn/v1',
+    model: config.model || 'kimi-k2.6'
+  }
+  aiConfigError.value = message
+  showAIConfig.value = true
+}
+
+function ensureAIConfigReady() {
+  try {
+    assertAIConfig(resolveAIConfig())
+    return true
+  } catch (error) {
+    openAIConfigPanel('需要先保存一次 API Key，之后本浏览器会自动记住。')
+    return false
+  }
+}
+
+const saveAIConfigAndRun = async () => {
+  if (!aiConfigForm.value.apiKey) {
+    aiConfigError.value = '请先填写 API Key。'
+    return
+  }
+
+  saveBrowserAIConfig(aiConfigForm.value)
+  showAIConfig.value = false
+  aiConfigError.value = ''
+  await nextTick()
+  await hanaiAnalysis()
+}
+
 // HANAI 分析
 const hanaiAnalysis = async () => {
   if (isLoading.value) return
+  if (!ensureAIConfigReady()) return
   
   // 标记 HANAI 分析已开始
   hanaiAnalysisStarted.value = true
@@ -1016,12 +1122,21 @@ const hanaiAnalysis = async () => {
     // 创建隐藏的 Prompt 内容并提取纯文本
     const plainText = await extractPromptTextForAPI()
     
-    // 调用 Kimi API
-    await callKimiAPI(plainText, assistantMessageIndex)
+    // 调用 AI API
+    await callAIAPI(plainText, assistantMessageIndex)
     
   } catch (error) {
     console.error('HANAI 分析失败:', error)
+    hanaiAnalysisStarted.value = false
     messages.value[assistantMessageIndex].content = `❌ 分析失败：${error.message}\n\n请检查网络连接或稍后再试。`
+    if (
+      error.message.includes('API Key') ||
+      error.message.includes('未配置') ||
+      error.message.includes('模型') ||
+      error.message.includes('API 地址')
+    ) {
+      openAIConfigPanel(error.message)
+    }
   } finally {
     isLoading.value = false
     nextTick(() => {
@@ -1070,21 +1185,54 @@ const extractPromptTextForAPI = async () => {
   })
 }
 
-// 调用 Kimi API 进行流式分析
-const callKimiAPI = async (prompt, messageIndex) => {
-  const KIMI_API_KEY = 'sk-PALcY0I0t5SfU9aqnooUcF0Ue83lkmbuZORH02683QhvG8ii'
-  const KIMI_API_URL = 'https://api.moonshot.cn/v1/chat/completions'
-  
+const extractStreamDelta = (data) => {
+  const choice = data?.choices?.[0]
+  const delta = choice?.delta || {}
+
+  const contentFields = [
+    delta.content,
+    choice?.message?.content,
+  ]
+  const reasoningFields = [
+    delta.reasoning_content,
+    delta.reasoning,
+    delta.thinking,
+    delta.thought,
+    choice?.reasoning_content,
+    data?.reasoning_content,
+  ]
+
+  return {
+    content: contentFields.filter(value => typeof value === 'string').join(''),
+    reasoning: reasoningFields.filter(value => typeof value === 'string').join(''),
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// 调用 AI API 进行流式分析
+const callAIAPI = async (prompt, messageIndex) => {
+  const aiConfig = resolveAIConfig()
+
   try {
-    const response = await fetch(KIMI_API_URL, {
+    assertAIConfig(aiConfig)
+
+    const response = await fetch(getChatCompletionUrl(aiConfig), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${KIMI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'kimi-k2-0905-preview',
+      headers: getAuthHeaders(aiConfig),
+      body: JSON.stringify(buildChatCompletionPayload(aiConfig, {
         messages: [
+          {
+            role: 'system',
+            content: '请直接输出最终投资分析正文，不要输出 <think>、思考过程或内部推理。'
+          },
           {
             role: 'user',
             content: prompt
@@ -1092,27 +1240,105 @@ const callKimiAPI = async (prompt, messageIndex) => {
         ],
         stream: true,
         temperature: 0.7,
-        max_tokens: 8000  // 增加最大输出 token 数，确保回答完整
-      })
+        maxTokens: 12000
+      }))
     })
     
     if (!response.ok) {
-      throw new Error(`API 请求失败: ${response.status} ${response.statusText}`)
+      let errorBody = null
+      try {
+        errorBody = await response.json()
+      } catch {
+        errorBody = null
+      }
+      throw new Error(getAPIErrorMessage(response.status, response.statusText, errorBody, aiConfig))
     }
     
     const reader = response.body.getReader()
     const decoder = new TextDecoder('utf-8')
     let buffer = ''
-    let displayedContent = 'HANAI 价值分析\n\n' // 已显示的内容
+    const baseContent = 'HANAI 价值分析\n\n'
+    let displayedContent = baseContent // 已显示的正式正文
     let pendingContent = '' // 待显示的内容缓冲区
     let isTyping = false // 是否正在打字
     let totalReceived = 0 // 统计接收到的总字符数
+    let reasoningReceived = 0 // 统计接收到的思考/推理字符数
+    let reasoningContent = ''
+    let hasFinalContent = false
+    let lastThinkingUpdateAt = 0
+    const maxReasoningDisplayChars = 12000
     
+    const buildThinkingBlock = (isThinking = true) => {
+      if (!reasoningContent) return '正在等待模型输出思考内容…'
+
+      const isTruncated = reasoningReceived > reasoningContent.length
+      const status = isThinking ? '思考中' : '思考完成'
+      const truncationText = isTruncated ? `\n\n... 仅显示最近 ${reasoningContent.length} 字` : ''
+
+      return `<details class="hanai-thinking" open>
+<summary>🧠 模型思考过程 <span>${status} · ${reasoningReceived} 字</span></summary>
+<pre>${escapeHtml(reasoningContent + truncationText)}</pre>
+</details>`
+    }
+
+    const renderMessageContent = () => {
+      const finalContent = displayedContent.slice(baseContent.length)
+      const thinkingBlock = reasoningContent ? `${buildThinkingBlock(!hasFinalContent)}\n\n` : ''
+      const waitingText = !reasoningContent && !finalContent ? '正在思考与梳理数据，请稍等…' : ''
+      messages.value[messageIndex].content = `${baseContent}${thinkingBlock}${finalContent || waitingText}`
+    }
+
     // 显示开始提示
-    messages.value[messageIndex].content = displayedContent
+    renderMessageContent()
     
     // 滚动到标题位置
     nextTick(() => scrollToBottom(true))
+
+    const updateThinkingStatus = (force = false) => {
+      if (hasFinalContent) return
+      const now = Date.now()
+      if (!force && now - lastThinkingUpdateAt < 350) return
+      lastThinkingUpdateAt = now
+      renderMessageContent()
+      nextTick(() => scrollToBottom())
+    }
+
+    const appendFinalContent = (content) => {
+      if (!content) return
+      if (!hasFinalContent) {
+        hasFinalContent = true
+        renderMessageContent()
+      }
+      totalReceived += content.length
+      pendingContent += content
+      if (!isTyping) {
+        typewriterEffect()
+      }
+    }
+
+    const processSSELine = (line) => {
+      const trimmedLine = line.trim()
+      if (!trimmedLine || trimmedLine === 'data: [DONE]' || !trimmedLine.startsWith('data: ')) return
+
+      try {
+        const jsonStr = trimmedLine.slice(6)
+        const data = JSON.parse(jsonStr)
+        const { content, reasoning } = extractStreamDelta(data)
+
+        if (reasoning) {
+          reasoningReceived += reasoning.length
+          reasoningContent += reasoning
+          if (reasoningContent.length > maxReasoningDisplayChars) {
+            reasoningContent = reasoningContent.slice(-maxReasoningDisplayChars)
+          }
+          updateThinkingStatus()
+        }
+
+        appendFinalContent(content)
+      } catch (e) {
+        console.error('解析 SSE 数据失败:', e)
+      }
+    }
     
     // 打字机效果函数
     const typewriterEffect = async () => {
@@ -1126,7 +1352,7 @@ const callKimiAPI = async (prompt, messageIndex) => {
         pendingContent = pendingContent.slice(charsToAdd)
         
         displayedContent += textToAdd
-        messages.value[messageIndex].content = displayedContent
+        renderMessageContent()
         
         // 定期滚动
         if (Math.random() < 0.3) {
@@ -1146,27 +1372,7 @@ const callKimiAPI = async (prompt, messageIndex) => {
       
       if (done) {
         // 处理缓冲区中的剩余数据
-        if (buffer.trim()) {
-          const line = buffer.trim()
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const jsonStr = line.slice(6)
-              const data = JSON.parse(jsonStr)
-              
-              if (data.choices && data.choices[0]?.delta?.content) {
-                const content = data.choices[0].delta.content
-                totalReceived += content.length
-                pendingContent += content
-                
-                if (!isTyping) {
-                  typewriterEffect()
-                }
-              }
-            } catch (e) {
-              console.error('解析剩余 SSE 数据失败:', e)
-            }
-          }
-        }
+        if (buffer.trim()) processSSELine(buffer)
         break
       }
       
@@ -1175,29 +1381,14 @@ const callKimiAPI = async (prompt, messageIndex) => {
       buffer = lines.pop() || ''
       
       for (const line of lines) {
-        if (line.trim() === '' || line.trim() === 'data: [DONE]') continue
-        
-        if (line.startsWith('data: ')) {
-          try {
-            const jsonStr = line.slice(6)
-            const data = JSON.parse(jsonStr)
-            
-            if (data.choices && data.choices[0]?.delta?.content) {
-              const content = data.choices[0].delta.content
-              totalReceived += content.length
-              // 将新内容加入待显示缓冲区
-              pendingContent += content
-              
-              // 启动打字机效果
-              if (!isTyping) {
-                typewriterEffect()
-              }
-            }
-          } catch (e) {
-            console.error('解析 SSE 数据失败:', e)
-          }
-        }
+        processSSELine(line)
       }
+    }
+
+    if (!hasFinalContent) {
+      messages.value[messageIndex].content = reasoningContent
+        ? `${baseContent}${buildThinkingBlock(false)}\n\n模型已返回推理流，但没有返回正式分析正文。请重新点击 HANAI 分析，或稍后再试。`
+        : `${baseContent}API 没有返回可显示内容，请稍后重试。`
     }
     
     // 确保打字机效果完成，等待所有内容显示完毕
@@ -1212,14 +1403,15 @@ const callKimiAPI = async (prompt, messageIndex) => {
     if (pendingContent.length > 0) {
       console.warn('⚠️ 打字机效果超时，直接显示剩余内容:', pendingContent.length, '字符')
       displayedContent += pendingContent
-      messages.value[messageIndex].content = displayedContent
+      renderMessageContent()
       pendingContent = ''
     }
     
     // 输出统计信息
     console.log('✅ HANAI 分析完成')
     console.log('📊 总共接收:', totalReceived, '字符')
-    console.log('📊 最终显示:', (displayedContent.length - 'HANAI 价值分析\n\n'.length), '字符')
+    console.log('🧠 推理流接收:', reasoningReceived, '字符')
+    console.log('📊 最终显示:', (displayedContent.length - baseContent.length), '字符')
     
     // 确保最后滚动到底部
     nextTick(() => scrollToBottom(true))
@@ -1729,11 +1921,24 @@ const generateValueInfo = () => {
   return info
 }
 
-// 格式化消息（支持换行和加粗）
+function normalizeMarkdown(content) {
+  return String(content || '')
+    .replace(/^\s*["“”']---["“”']\s*$/gm, '---')
+    .replace(/^\s*["“”'](#{1,6}\s.+?)["“”']\s*$/gm, '$1')
+}
+
+// 格式化消息（支持 Markdown / 表格 / 内置 HTML 卡片）
 const formatMessage = (content) => {
-  return content
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  if (!content) return ''
+
+  try {
+    return marked.parse(normalizeMarkdown(content))
+  } catch (error) {
+    console.error('Markdown 渲染失败:', error)
+    return String(content)
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  }
 }
 
 // 获取当前时间
@@ -2384,6 +2589,7 @@ onUnmounted(() => {
 
 /* ========== HANAI 分析专属样式 ========== */
 .message-wrapper.hanai-analysis .message-bubble {
+  max-width: min(92%, 860px);
   background: linear-gradient(135deg, 
     rgba(139, 92, 246, 0.03) 0%, 
     rgba(124, 58, 237, 0.05) 50%,
@@ -2514,6 +2720,193 @@ onUnmounted(() => {
   font-size: 14px;
   line-height: 1.6;
   word-wrap: break-word;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.message-content :deep(p) {
+  margin: 0 0 10px;
+}
+
+.message-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.message-wrapper.user .message-content :deep(p) {
+  margin: 0;
+}
+
+.message-content :deep(h1),
+.message-content :deep(h2),
+.message-content :deep(h3),
+.message-content :deep(h4) {
+  margin: 18px 0 10px;
+  color: #1e293b;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.message-content :deep(h1:first-child),
+.message-content :deep(h2:first-child),
+.message-content :deep(h3:first-child),
+.message-content :deep(h4:first-child) {
+  margin-top: 0;
+}
+
+.message-content :deep(h1) {
+  font-size: 20px;
+}
+
+.message-content :deep(h2) {
+  padding-left: 10px;
+  border-left: 4px solid #7c3aed;
+  font-size: 18px;
+}
+
+.message-content :deep(h3) {
+  color: #334155;
+  font-size: 16px;
+}
+
+.message-content :deep(h4) {
+  color: #475569;
+  font-size: 15px;
+}
+
+.message-content :deep(hr) {
+  border: none;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  margin: 16px 0;
+}
+
+.message-content :deep(ul),
+.message-content :deep(ol) {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+}
+
+.message-content :deep(li) {
+  margin: 5px 0;
+  padding-left: 2px;
+}
+
+.message-content :deep(blockquote) {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-left: 4px solid rgba(124, 58, 237, 0.35);
+  border-radius: 8px;
+  background: rgba(124, 58, 237, 0.06);
+  color: #475569;
+}
+
+.message-content :deep(.hanai-thinking) {
+  margin: 4px 0 14px;
+  border: 1px solid rgba(124, 58, 237, 0.22);
+  border-radius: 12px;
+  background: rgba(250, 245, 255, 0.72);
+  overflow: hidden;
+}
+
+.message-content :deep(.hanai-thinking summary) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  color: #6d28d9;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+}
+
+.message-content :deep(.hanai-thinking summary span) {
+  color: #8b5cf6;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.message-content :deep(.hanai-thinking pre) {
+  max-height: 220px;
+  margin: 0;
+  padding: 12px;
+  border-top: 1px solid rgba(124, 58, 237, 0.16);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.72);
+  color: #475569;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.message-content :deep(table) {
+  width: 100%;
+  min-width: 520px;
+  margin: 12px 0 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.message-content :deep(th),
+.message-content :deep(td) {
+  padding: 9px 10px;
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  text-align: left;
+  vertical-align: top;
+}
+
+.message-content :deep(th:last-child),
+.message-content :deep(td:last-child) {
+  border-right: none;
+}
+
+.message-content :deep(tr:last-child td) {
+  border-bottom: none;
+}
+
+.message-content :deep(th) {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%);
+  color: #334155;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.message-content :deep(tbody tr:nth-child(even) td) {
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.message-content :deep(code) {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #5b21b6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.message-content :deep(pre) {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow-x: auto;
+}
+
+.message-content :deep(pre code) {
+  padding: 0;
+  background: transparent;
+  color: inherit;
 }
 
 .message-content :deep(strong) {
@@ -2810,7 +3203,113 @@ onUnmounted(() => {
 .analysis-actions {
   min-height: 68px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.ai-config-panel {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(250, 245, 255, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.08);
+}
+
+.ai-config-title {
+  margin-bottom: 10px;
+  color: #5b21b6;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ai-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ai-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-config-wide {
+  grid-column: 1 / -1;
+}
+
+.ai-config-field span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ai-config-field input,
+.ai-config-field select {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 9px;
+  background: white;
+  color: #334155;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-config-field input:focus,
+.ai-config-field select:focus {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.ai-config-error {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: rgba(254, 242, 242, 0.9);
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ai-config-save,
+.ai-config-cancel {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-config-save {
+  border: none;
+  background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+  color: white;
+  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.22);
+}
+
+.ai-config-cancel {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: white;
+  color: #64748b;
+}
+
+.ai-config-save:hover,
+.ai-config-cancel:hover {
+  transform: translateY(-1px);
 }
 
 /* 按钮切换动画 - 简洁优雅 */
@@ -3074,6 +3573,19 @@ onUnmounted(() => {
   .analysis-actions {
     padding: 14px 16px;
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .ai-config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-config-actions {
+    justify-content: stretch;
+  }
+
+  .ai-config-save,
+  .ai-config-cancel {
+    flex: 1;
   }
 
   .analysis-btn {
@@ -4065,4 +4577,3 @@ onUnmounted(() => {
   }
 }
 </style>
-

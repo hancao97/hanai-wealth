@@ -12,7 +12,7 @@
 - **智能筛选**: 基于价值大师网（GuruFocus）合理估值，筛选出折扣率最高的50只股票
 
 ### 2. AI 智能分析
-- **深度分析**: 使用 Kimi AI 模型进行专业分析
+- **深度分析**: 默认使用 Kimi `kimi-k2.6` 模型进行专业分析
 - **多维度**: 包含整体特征、行业分布、投资价值评估和投资建议
 - **可追溯**: 保留完整的分析 Prompt，支持查看和审计
 
@@ -38,10 +38,25 @@
 npm run weekly-report
 ```
 
+默认已内置 Kimi/Moonshot API 配置，直接运行即可。需要临时切换 Key 或模型时，可以用环境变量覆盖：
+
+```bash
+AI_API_KEY=你的Kimi或OpenAIKey npm run weekly-report
+```
+
+也可以在 `.env.local` 中为前端调试覆盖默认配置：
+
+```bash
+VITE_AI_API_KEY=你的KimiKey
+VITE_AI_MODEL=kimi-k2.6
+```
+
 #### 自动生成
 - GitHub Actions 工作流会在每周五晚上9点自动运行
 - 生成的周报会自动提交到仓库的 `public/weekly-report.json`
 - 也可以在 GitHub Actions 页面手动触发
+- 默认使用代码内置的 Kimi/Moonshot 配置，不需要额外配置 GitHub Secrets
+- 如需临时覆盖，可配置 `AI_API_KEY`（或 `MOONSHOT_API_KEY` / `KIMI_API_KEY` / `OPENAI_API_KEY`）以及 `AI_PROVIDER`、`AI_MODEL`、`AI_API_BASE_URL`
 
 ## 技术架构
 
@@ -55,7 +70,7 @@ npm run weekly-report
 2. **生成脚本** (`src/scripts/generate-weekly-report.js`)
    - 读取最新交易日数据
    - 调用筛选函数
-   - 请求 Kimi AI API
+   - 请求可配置的 AI API
    - 保存周报到 JSON 文件
 
 3. **前端组件** (`src/components/WeeklyReport.vue`)
@@ -79,6 +94,9 @@ npm run weekly-report
 {
   "date": "2025-11-07",
   "generatedAt": "2025-11-08T21:00:00.000Z",
+  "aiProvider": "moonshot",
+  "aiModel": "kimi-k2.6",
+  "analysisStatus": "generated",
   "prompt": "发送给AI的完整Prompt...",
   "analysis": "AI分析报告..."
 }
@@ -116,16 +134,17 @@ npm run weekly-report
 ## 依赖项
 
 - **html2pdf.js**: PDF 导出功能
-- **Kimi AI API**: AI 分析能力
+- **Kimi/OpenAI API**: AI 分析能力
 - **axios**: HTTP 请求
 - **pinia**: 状态管理
 
 ## 注意事项
 
-1. **API 密钥**: Kimi API Key 已硬编码在脚本中（生产环境建议使用环境变量）
+1. **API 密钥**: 当前项目按私用场景处理，默认 Kimi/Moonshot Key 写在 `src/utils/aiProvider.js`；环境变量仍可覆盖
 2. **数据更新**: 周报基于最新交易日数据，需确保数据已更新
 3. **网络依赖**: 生成周报需要网络连接以调用AI API
 4. **单文件存储**: 只保留最新一期周报，新周报会覆盖旧周报
+5. **模型更新**: `kimi-k2-0905-preview` 已下线，默认模型已更新为 `kimi-k2.6`
 
 ## 未来优化
 
@@ -145,15 +164,16 @@ npm run weekly-report
 
 ### 后台脚本生成失败
 - 检查最新交易日数据是否存在
-- 验证 Kimi API Key 是否有效
+- 验证 AI API Key 是否有效
+- 如果出现 404，检查 `AI_MODEL` 是否仍被平台支持
 - 查看脚本执行日志
 
 ### GitHub Actions 执行失败
 - 查看 Actions 运行日志
 - 检查权限配置（`FETCH_AND_DEPLOY_TOKEN`）
+- 检查内置 AI 配置是否可用，或检查环境变量覆盖值是否正确
 - 确认依赖安装是否成功
 
 ## 许可证
 
 本功能遵循项目主许可证。
-

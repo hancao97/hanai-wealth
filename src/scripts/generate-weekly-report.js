@@ -8,55 +8,65 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import axios from 'axios'
 import { selectTop50UndervaluedStocks, buildAIPrompt } from '../utils/weeklyReport.js'
+import {
+  assertAIConfig,
+  buildChatCompletionPayload,
+  extractAIMessage,
+  getAPIErrorMessage,
+  getAuthHeaders,
+  getChatCompletionUrl,
+  resolveAIConfig,
+} from '../utils/aiProvider.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Kimi API 配置
-const KIMI_API_KEY = 'sk-PALcY0I0t5SfU9aqnooUcF0Ue83lkmbuZORH02683QhvG8ii'
-const KIMI_API_URL = 'https://api.moonshot.cn/v1/chat/completions'
-
 /**
- * 调用Kimi API生成分析报告
+ * 调用AI API生成分析报告
  * @param {string} prompt - 发送给AI的prompt
  * @returns {Promise<string>} AI生成的分析内容
  */
-async function callKimiAPI(prompt) {
+async function callAIAPI(prompt) {
+  const aiConfig = resolveAIConfig()
+
   try {
-    console.log('正在调用Kimi API生成分析...')
-    
-    const response = await axios.post(KIMI_API_URL, {
-      model: 'kimi-k2-0905-preview',
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      stream: false,
-      temperature: 0.7,
-      max_tokens: 8000
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${KIMI_API_KEY}`
+    assertAIConfig(aiConfig)
+    console.log(`正在调用AI生成分析... provider=${aiConfig.provider}, model=${aiConfig.model}`)
+
+    const response = await axios.post(
+      getChatCompletionUrl(aiConfig),
+      buildChatCompletionPayload(aiConfig, {
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        stream: false,
+        temperature: 0.7,
+        maxTokens: 8000
+      }),
+      {
+        headers: getAuthHeaders(aiConfig)
       }
-    })
+    )
 
-    if (!response.data || !response.data.choices || !response.data.choices[0] || !response.data.choices[0].message) {
-      throw new Error('API 返回数据格式错误')
-    }
-
-    const analysis = response.data.choices[0].message.content
+    const analysis = extractAIMessage(response.data)
     console.log('✅ AI分析生成成功')
     
     return analysis
   } catch (error) {
     if (error.response) {
-      console.error('❌ 调用Kimi API失败:', error.response.status, error.response.data)
-      throw new Error(`API 请求失败: ${error.response.status} ${JSON.stringify(error.response.data)}`)
+      const message = getAPIErrorMessage(
+        error.response.status,
+        error.response.statusText,
+        error.response.data,
+        aiConfig
+      )
+      console.error('❌ 调用AI API失败:', message)
+      throw new Error(message)
     } else {
-      console.error('❌ 调用Kimi API失败:', error.message)
+      console.error('❌ 调用AI API失败:', error.message)
       throw error
     }
   }
@@ -108,7 +118,7 @@ async function loadLatestTradingData() {
 function saveWeeklyReport(reportData) {
   try {
     const projectRoot = path.resolve(__dirname, '../../')
-    const outputPath = path.join(projectRoot, 'public/weekly-report.json')
+    const outputPath = process.env.WEEKLY_REPORT_OUTPUT_PATH || path.join(projectRoot, 'public/weekly-report.json')
     
     console.log('正在保存周报...')
     fs.writeFileSync(outputPath, JSON.stringify(reportData, null, 2), 'utf-8')
@@ -118,6 +128,39 @@ function saveWeeklyReport(reportData) {
     console.error('❌ 保存周报失败:', error.message)
     throw error
   }
+}
+
+/**
+ * 读取上一期周报，用于CI中AI服务异常时保留可展示内容
+ * @returns {Object|null}
+ */
+function loadPreviousWeeklyReport() {
+  try {
+    const projectRoot = path.resolve(__dirname, '../../')
+    const reportPath = path.join(projectRoot, 'public/weekly-report.json')
+    if (!fs.existsSync(reportPath)) return null
+    return JSON.parse(fs.readFileSync(reportPath, 'utf-8'))
+  } catch (error) {
+    console.warn('⚠️ 读取上一期周报失败:', error.message)
+    return null
+  }
+}
+
+function shouldAllowStaleAnalysis() {
+  return process.env.WEEKLY_REPORT_ALLOW_STALE_ANALYSIS === 'true'
+}
+
+function buildFallbackAnalysis(previousReport, error, date) {
+  const previousDate = previousReport?.date || '上一期'
+  const previousAnalysis = previousReport?.analysis || ''
+
+  return `# HANAI 价值周报
+
+> 本次（${date}）AI 分析暂未生成成功：${error.message}
+>
+> 以下保留 ${previousDate} 的旧分析内容，仅供临时参考。请检查内置 AI 配置或环境变量覆盖值后重新运行周报任务。
+
+${previousAnalysis || '暂无上一期分析内容。'}`
 }
 
 /**
@@ -150,12 +193,27 @@ async function generateWeeklyReport() {
     
     // 4. 调用AI生成分析
     console.log('\n')
-    const analysis = await callKimiAPI(prompt)
+    let analysis
+    let analysisStatus = 'generated'
+    try {
+      analysis = await callAIAPI(prompt)
+    } catch (error) {
+      if (!shouldAllowStaleAnalysis()) {
+        throw error
+      }
+
+      console.warn('⚠️ AI分析生成失败，CI将保留旧分析内容继续输出周报:', error.message)
+      analysisStatus = 'fallback'
+      analysis = buildFallbackAnalysis(loadPreviousWeeklyReport(), error, date)
+    }
     
     // 5. 构建周报数据
     const reportData = {
       date: date,
       generatedAt: new Date().toISOString(),
+      aiProvider: resolveAIConfig().provider,
+      aiModel: resolveAIConfig().model,
+      analysisStatus,
       prompt: prompt,
       analysis: analysis
     }
@@ -179,4 +237,3 @@ async function generateWeeklyReport() {
 
 // 执行主函数
 generateWeeklyReport()
-

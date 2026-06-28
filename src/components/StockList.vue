@@ -234,6 +234,42 @@
       </div>
     </Transition>
     
+    <div class="year-performance-section">
+      <div class="year-performance-card leader-card">
+        <div class="year-performance-header">
+          <div>
+            <div class="year-performance-eyebrow">今年股王</div>
+            <h3>年内涨幅冠军</h3>
+          </div>
+          <span class="year-performance-badge leader">TOP 1</span>
+        </div>
+        <template v-if="yearPerformanceSummary.leader">
+          <div class="year-performance-company">{{ yearPerformanceSummary.leader.company }}</div>
+          <div class="year-performance-symbol">{{ yearPerformanceSummary.leader.symbol }}</div>
+          <div class="year-performance-value positive">{{ formatSignedPercentage(yearPerformanceSummary.leader.performance) }}</div>
+          <div class="year-performance-period">{{ yearPerformancePeriodText }}</div>
+        </template>
+        <div v-else class="year-performance-empty">暂无数据</div>
+      </div>
+
+      <div class="year-performance-card laggard-card">
+        <div class="year-performance-header">
+          <div>
+            <div class="year-performance-eyebrow">今年股渣</div>
+            <h3>年内跌幅垫底</h3>
+          </div>
+          <span class="year-performance-badge laggard">BOTTOM 1</span>
+        </div>
+        <template v-if="yearPerformanceSummary.laggard">
+          <div class="year-performance-company">{{ yearPerformanceSummary.laggard.company }}</div>
+          <div class="year-performance-symbol">{{ yearPerformanceSummary.laggard.symbol }}</div>
+          <div class="year-performance-value negative">{{ formatSignedPercentage(yearPerformanceSummary.laggard.performance) }}</div>
+          <div class="year-performance-period">{{ yearPerformancePeriodText }}</div>
+        </template>
+        <div v-else class="year-performance-empty">暂无数据</div>
+      </div>
+    </div>
+
     <!-- 筛选器 -->
     <div class="filters">
       <div class="filter-row">
@@ -320,42 +356,6 @@
       </div>
     </div>
     
-    <div class="year-performance-section">
-      <div class="year-performance-card leader-card">
-        <div class="year-performance-header">
-          <div>
-            <div class="year-performance-eyebrow">今年股王</div>
-            <h3>年内涨幅冠军</h3>
-          </div>
-          <span class="year-performance-badge leader">TOP 1</span>
-        </div>
-        <template v-if="yearPerformanceSummary.leader">
-          <div class="year-performance-company">{{ yearPerformanceSummary.leader.company }}</div>
-          <div class="year-performance-symbol">{{ yearPerformanceSummary.leader.symbol }}</div>
-          <div class="year-performance-value positive">{{ formatSignedPercentage(yearPerformanceSummary.leader.performance) }}</div>
-          <div class="year-performance-period">{{ yearPerformancePeriodText }}</div>
-        </template>
-        <div v-else class="year-performance-empty">暂无数据</div>
-      </div>
-
-      <div class="year-performance-card laggard-card">
-        <div class="year-performance-header">
-          <div>
-            <div class="year-performance-eyebrow">今年股渣</div>
-            <h3>年内跌幅垫底</h3>
-          </div>
-          <span class="year-performance-badge laggard">BOTTOM 1</span>
-        </div>
-        <template v-if="yearPerformanceSummary.laggard">
-          <div class="year-performance-company">{{ yearPerformanceSummary.laggard.company }}</div>
-          <div class="year-performance-symbol">{{ yearPerformanceSummary.laggard.symbol }}</div>
-          <div class="year-performance-value negative">{{ formatSignedPercentage(yearPerformanceSummary.laggard.performance) }}</div>
-          <div class="year-performance-period">{{ yearPerformancePeriodText }}</div>
-        </template>
-        <div v-else class="year-performance-empty">暂无数据</div>
-      </div>
-    </div>
-
     <!-- 状态栏 -->
     <div class="status-bar" :class="{ 'loading': loading }">
       <div class="results-count">

@@ -15,14 +15,14 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.FETCH_AND_DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
         
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version: '24'
           cache: 'yarn'
           
       - name: Install Dependencies
@@ -32,6 +32,7 @@ jobs:
         run: npm run weekly-report
         env:
           NODE_ENV: production
+          WEEKLY_REPORT_ALLOW_STALE_ANALYSIS: 'true'
         
       - name: Check for changes
         id: git-check
@@ -47,4 +48,3 @@ jobs:
           git add public/weekly-report.json
           git commit -m "chore: 更新价值周报"
           git push
-
