@@ -270,6 +270,8 @@
       </div>
     </div>
 
+    <BullMarketReview />
+
     <!-- 筛选器 -->
     <div class="filters">
       <div class="filter-row">
@@ -520,6 +522,7 @@ import AnimatedCounter from './AnimatedCounter.vue'
 import MarketSentiment from './MarketSentiment.vue'
 import Announcement from './Announcement.vue'
 import WeeklyReport from './WeeklyReport.vue'
+import BullMarketReview from './BullMarketReview.vue'
 
 const router = useRouter()
 const stockStore = useStockDataStore()

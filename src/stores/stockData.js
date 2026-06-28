@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import {
+  BULL_MARKET_BASELINE_DATE,
+  BULL_MARKET_BASELINE_PATH,
+  buildBullMarketReview,
+} from '@/utils/bullMarketReview.js'
 
 export const useStockDataStore = defineStore('stockData', () => {
   // 状态
@@ -16,6 +21,10 @@ export const useStockDataStore = defineStore('stockData', () => {
   const historicalData = ref({}) // 存储历史数据 { date: data[] }
   const marketSentiment = ref([]) // 市场情绪数据
   const weeklyReport = ref(null) // 价值周报数据
+  const bullMarketReview = ref(null) // 牛市复盘数据
+  const bullMarketLoading = ref(false)
+  const bullMarketError = ref(null)
+  const bullMarketBaselineData = ref(null)
   const yearPerformanceSummary = ref({
     startDate: null,
     endDate: null,
@@ -308,6 +317,7 @@ export const useStockDataStore = defineStore('stockData', () => {
       
       applyFilters()
       await calculateYearPerformanceSummary(selectedDate)
+      await loadBullMarketReview(selectedDate)
       
       // 加载历史数据并计算市场情绪（不阻塞主流程）
       loadMarketSentimentData(selectedDate).catch(err => {
@@ -322,6 +332,8 @@ export const useStockDataStore = defineStore('stockData', () => {
         leader: null,
         laggard: null
       }
+      bullMarketReview.value = null
+      bullMarketError.value = null
       applyFilters()
     } finally {
       loading.value = false
@@ -340,6 +352,47 @@ export const useStockDataStore = defineStore('stockData', () => {
     const response = await axios.get(`./assets/${date}.json`)
     historicalData.value[date] = response.data
     return historicalData.value[date]
+  }
+
+  async function loadBullMarketBaselineData() {
+    if (bullMarketBaselineData.value) {
+      return bullMarketBaselineData.value
+    }
+
+    const response = await axios.get(BULL_MARKET_BASELINE_PATH)
+    bullMarketBaselineData.value = response.data
+    return bullMarketBaselineData.value
+  }
+
+  async function loadBullMarketReview(selectedDate) {
+    bullMarketLoading.value = true
+    bullMarketError.value = null
+
+    try {
+      if (!selectedDate || selectedDate <= BULL_MARKET_BASELINE_DATE) {
+        bullMarketReview.value = buildBullMarketReview({
+          baselineData: [],
+          currentData: allData.value,
+          currentDate: selectedDate,
+        })
+        return bullMarketReview.value
+      }
+
+      const baselineData = await loadBullMarketBaselineData()
+      bullMarketReview.value = buildBullMarketReview({
+        baselineData,
+        currentData: allData.value,
+        currentDate: selectedDate,
+      })
+      return bullMarketReview.value
+    } catch (err) {
+      console.warn('加载牛市复盘数据失败:', err.message)
+      bullMarketReview.value = null
+      bullMarketError.value = `缺少 ${BULL_MARKET_BASELINE_DATE} 基准数据`
+      return null
+    } finally {
+      bullMarketLoading.value = false
+    }
   }
 
   function parsePriceValue(price) {
@@ -658,6 +711,9 @@ export const useStockDataStore = defineStore('stockData', () => {
     filters,
     marketSentiment,
     weeklyReport,
+    bullMarketReview,
+    bullMarketLoading,
+    bullMarketError,
     yearPerformanceSummary,
     
     // 计算属性
@@ -673,6 +729,7 @@ export const useStockDataStore = defineStore('stockData', () => {
     loadDataForDate,
     loadMarketSentimentData,
     loadWeeklyReport,
+    loadBullMarketReview,
     applyFilters,
     updateFilter,
     clearFilters,

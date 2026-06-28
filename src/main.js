@@ -6,6 +6,7 @@ import App from './App.vue'
 // 导入页面组件
 import StockList from './components/StockList.vue'
 import StockDetail from './components/StockDetail.vue'
+import BullMarketReviewPage from './components/BullMarketReviewPage.vue'
 
 // 导入内存监控工具（仅开发环境）
 import { createGlobalMonitor, quickMemoryCheck } from './utils/memoryMonitor'
@@ -25,6 +26,11 @@ const routes = [
       stockid: route.query.stockid,
       date: route.query.date,
     }),
+  },
+  {
+    path: '/bull-market-review',
+    name: 'BullMarketReview',
+    component: BullMarketReviewPage,
   },
 ]
 
