@@ -20,6 +20,46 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const WEEKLY_REPORT_DONE_MARKER = '<!-- HANAI_WEEKLY_REPORT_DONE -->'
+const DEFAULT_WEEKLY_REPORT_MAX_TOKENS = 16000
+const MAX_CONTINUATION_ATTEMPTS = 3
+
+function readPositiveIntEnv(name, fallback) {
+  const value = Number.parseInt(process.env[name] || '', 10)
+  return Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+function stripDoneMarker(content) {
+  return String(content || '').replace(WEEKLY_REPORT_DONE_MARKER, '').trim()
+}
+
+function countMatches(content, pattern) {
+  return (String(content || '').match(pattern) || []).length
+}
+
+function hasBalancedMarkdown(content) {
+  const text = String(content || '')
+  return countMatches(text, /```/g) % 2 === 0 && countMatches(text, /\*\*/g) % 2 === 0
+}
+
+function hasCompleteWeeklyReport(content) {
+  const text = String(content || '')
+  return (
+    text.includes(WEEKLY_REPORT_DONE_MARKER) &&
+    hasBalancedMarkdown(text) &&
+    text.length >= 2500
+  )
+}
+
+function getFinishReason(responseData) {
+  return responseData?.choices?.[0]?.finish_reason || ''
+}
+
+function getUsageText(responseData) {
+  const usage = responseData?.usage
+  if (!usage) return 'usage unavailable'
+  return `prompt=${usage.prompt_tokens ?? '-'}, completion=${usage.completion_tokens ?? '-'}, total=${usage.total_tokens ?? '-'}`
+}
 
 /**
  * 调用AI API生成分析报告
@@ -28,33 +68,78 @@ const __dirname = path.dirname(__filename)
  */
 async function callAIAPI(prompt) {
   const aiConfig = resolveAIConfig()
+  const maxTokens = readPositiveIntEnv('WEEKLY_REPORT_MAX_TOKENS', DEFAULT_WEEKLY_REPORT_MAX_TOKENS)
 
   try {
     assertAIConfig(aiConfig)
     console.log(`正在调用AI生成分析... provider=${aiConfig.provider}, model=${aiConfig.model}`)
 
-    const response = await axios.post(
-      getChatCompletionUrl(aiConfig),
-      buildChatCompletionPayload(aiConfig, {
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        stream: false,
-        temperature: 0.7,
-        maxTokens: 8000
-      }),
+    const baseMessages = [
       {
-        headers: getAuthHeaders(aiConfig)
+        role: 'system',
+        content: [
+          '你是 HANAI 价值周报分析师。输出必须是完整 Markdown 周报，不要输出思考过程。',
+          '内容必须有明确结尾，最后一行必须原样输出完成标记：',
+          WEEKLY_REPORT_DONE_MARKER,
+        ].join('\n')
+      },
+      {
+        role: 'user',
+        content: `${prompt}\n\n请完整输出周报。最后一行必须输出：${WEEKLY_REPORT_DONE_MARKER}`
       }
-    )
+    ]
 
-    const analysis = extractAIMessage(response.data)
-    console.log('✅ AI分析生成成功')
-    
-    return analysis
+    let messages = [...baseMessages]
+    let analysis = ''
+
+    for (let attempt = 0; attempt <= MAX_CONTINUATION_ATTEMPTS; attempt += 1) {
+      const response = await axios.post(
+        getChatCompletionUrl(aiConfig),
+        buildChatCompletionPayload(aiConfig, {
+          messages,
+          stream: false,
+          temperature: 0.7,
+          maxTokens
+        }),
+        {
+          headers: getAuthHeaders(aiConfig)
+        }
+      )
+
+      const part = extractAIMessage(response.data)
+      const finishReason = getFinishReason(response.data)
+      analysis += part
+
+      console.log(`AI输出片段 ${attempt + 1}: ${part.length} 字符, finish_reason=${finishReason || 'unknown'}, ${getUsageText(response.data)}`)
+
+      if (hasCompleteWeeklyReport(analysis) && finishReason !== 'length') {
+        console.log('✅ AI分析生成成功，完整性校验通过')
+        return stripDoneMarker(analysis)
+      }
+
+      if (attempt === MAX_CONTINUATION_ATTEMPTS) {
+        break
+      }
+
+      console.warn('⚠️ AI输出疑似未完整，准备请求续写...')
+      messages = [
+        ...baseMessages,
+        {
+          role: 'assistant',
+          content: analysis
+        },
+        {
+          role: 'user',
+          content: [
+            '上面的周报还没有完整结束，或缺少完成标记。',
+            '请从被截断的位置继续写，不要重复已经写过的内容。',
+            `完成后最后一行必须输出：${WEEKLY_REPORT_DONE_MARKER}`,
+          ].join('\n')
+        }
+      ]
+    }
+
+    throw new Error('AI 分析输出不完整：多次续写后仍缺少完成标记或 Markdown 未闭合。')
   } catch (error) {
     if (error.response) {
       const message = getAPIErrorMessage(
