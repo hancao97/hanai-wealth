@@ -1,3 +1,5 @@
+
+
 # HANAI · WEALTH - 智能投资决策平台
 
 一个基于GuruFocus数据的智能股票价值分析平台，专为中国A股投资者设计。
@@ -109,7 +111,7 @@ npm run serve
 
 - `npm run fetch` - 爬取最新股票数据
 - `npm run serve` - 启动本地开发服务器
-- `npm run today` - 获取数据并启动服务（一键启动）
+- `npm run serve:today` - 获取数据并启动服务（一键启动）
 
 ## 🔧 配置说明
 
